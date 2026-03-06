@@ -29,3 +29,11 @@ export interface HistoricalRecord {
   [key: string]: number | string; // Allows for dynamic source keys
 }
 
+export interface LMPDataPoint {
+  time: string; // ISO 8601 format
+  lmp: number; // $/MWh
+  energy: number; // $/MWh
+  congestion: number; // $/MWh
+  loss: number; // $/MWh
+}
+
