@@ -144,6 +144,7 @@ export async function fetchLMPHourly(
     headers: {
       "x-api-key": apiKey,
     },
+    signal: AbortSignal.timeout(30000), // 30 second timeout
   });
 
   if (!response.ok) {

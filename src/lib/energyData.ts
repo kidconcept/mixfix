@@ -4,15 +4,20 @@ import { EnergySource, HistoricalRecord } from "@/types/energy";
 // Constants
 // ---------------------------------------------------------------------------
 
+// Colors sampled directly from the Caribbean sunset graphic
 export const SOURCE_COLORS: Record<EnergySource, string> = {
-  solar: "#f59e0b",
-  wind: "#6ee7b7",
-  hydro: "#38bdf8",
-  nuclear: "#a78bfa",
-  gas: "#fb923c",
-  coal: "#6b7280",
-  oil: "#92400e",
-  other: "#d1d5db",
+  // Renewables - sampled from the water blues
+  solar: "#6DD5C3",     // Light turquoise water
+  wind: "#5DB4C8",      // Mid-tone water blue
+  hydro: "#3B7EA5",     // Deeper water blue
+  // Nuclear - sampled from palm tree silhouettes
+  nuclear: "#1B3A4B",   // Dark navy from palms
+  // Fossil fuels - darker shades from sunset for distinction
+  gas: "#FFB87A",       // Light sunset orange
+  coal: "#FF8F5C",      // Mid sunset coral
+  oil: "#E5614A",       // Deep burnt coral/red
+  // Other - sampled from coral/pink accents
+  other: "#FF9B8A",     // Coral pink
 };
 
 const EIA_BASE = "https://api.eia.gov/v2";

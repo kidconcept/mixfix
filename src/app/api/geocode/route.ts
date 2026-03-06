@@ -105,10 +105,11 @@ export async function GET(request: Request) {
   const address = searchParams.get("address");
 
   if (!address) {
-    return NextResponse.json(
-      { error: "Address parameter is required" },
-      { status: 400 }
-    );
+    return NextResponse.json({
+      iso: null,
+      zone: null,
+      message: "No address provided",
+    });
   }
 
   try {
