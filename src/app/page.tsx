@@ -5,8 +5,32 @@ import { useState, useEffect } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
 
-// Move fetcher outside component to prevent recreation
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+// Fetcher with timeout for client-side requests
+const fetcher = async (url: string) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 65000); // 65 second timeout (slightly more than server timeout)
+  
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - data source may be slow or unavailable');
+      }
+      throw error;
+    }
+    throw new Error('Unknown error fetching data');
+  }
+};
 
 // Get yesterday's date in YYYY-MM-DD format
 function getYesterday(): string {
@@ -172,33 +196,47 @@ export default function Home() {
     shouldRetryOnError: false,
   });
 
-  // Retry logic for fuel mix data
+  // Retry logic for fuel mix data with exponential backoff
   useEffect(() => {
     if (fuelMixError && !fuelMixData && fuelMixRetryCount < 3) {
+      // Check if it's a rate limit error
+      const isRateLimited = fuelMixError.message?.includes('Rate limit');
+      // For rate limits, use longer delays: 15s, 30s, 60s
+      // For other errors, use exponential backoff: 2s, 4s, 8s
+      const baseDelay = isRateLimited ? 15000 : 2000;
+      const delay = Math.pow(2, fuelMixRetryCount) * baseDelay;
+      
       const retryTimer = setTimeout(() => {
-        console.log(`Retrying fuel mix data (attempt ${fuelMixRetryCount + 1}/3)...`);
+        console.log(`Retrying fuel mix data (attempt ${fuelMixRetryCount + 1}/3 after ${delay}ms, rate limited: ${isRateLimited})...`);
         setFuelMixRetryCount(prev => prev + 1);
         // Force refetch by updating the key
         setFuelMixKey(
           `/api/energy?date=${date}${location ? `&location=${location}` : ""}&retry=${fuelMixRetryCount + 1}`
         );
-      }, 1000);
+      }, delay);
 
       return () => clearTimeout(retryTimer);
     }
   }, [fuelMixError, fuelMixData, fuelMixRetryCount, date, location]);
 
-  // Retry logic for pricing data
+  // Retry logic for pricing data with exponential backoff
   useEffect(() => {
     if (pricingError && !pricingData && pricingRetryCount < 3) {
+      // Check if it's a rate limit error
+      const isRateLimited = pricingError.message?.includes('Rate limit');
+      // For rate limits, use longer delays: 15s, 30s, 60s
+      // For other errors, use exponential backoff: 2s, 4s, 8s
+      const baseDelay = isRateLimited ? 15000 : 2000;
+      const delay = Math.pow(2, pricingRetryCount) * baseDelay;
+      
       const retryTimer = setTimeout(() => {
-        console.log(`Retrying pricing data (attempt ${pricingRetryCount + 1}/3)...`);
+        console.log(`Retrying pricing data (attempt ${pricingRetryCount + 1}/3 after ${delay}ms, rate limited: ${isRateLimited})...`);
         setPricingRetryCount(prev => prev + 1);
         // Force refetch by updating the key
         setPricingKey(
           `/api/energy?date=${date}&location=${location}&view=pricing&node=${node}&retry=${pricingRetryCount + 1}`
         );
-      }, 1000);
+      }, delay);
 
       return () => clearTimeout(retryTimer);
     }
@@ -219,10 +257,10 @@ export default function Home() {
     }
   }, [pricingData, pricingRetryCount]);
 
-  // Wait for both datasets to load before rendering chart
-  const isLoading = fuelMixLoading || pricingLoading;
-  const hasData = fuelMixData && pricingData;
-  const hasPartialData = fuelMixData || pricingData;
+  // Pricing is now the primary data source, fuel mix is secondary/enhancement
+  const hasPricingData = !!pricingData;
+  const hasFuelMixData = !!fuelMixData;
+  const hasAnyData = hasPricingData; // Chart requires pricing data as primary
 
   return (
     <SWRConfig value={swrConfig}>
@@ -368,31 +406,55 @@ export default function Home() {
 
         {/* Data Display */}
         <div className="mt-8">
-          {isLoading && (
-            <div className="text-center p-8 text-gray-600 font-medium">Loading data...</div>
-          )}
-          {!isLoading && !hasData && hasPartialData && (
-            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4 mb-4 shadow-sm">
-              <p className="text-amber-800 font-semibold">⚠️ Partial Data Available</p>
-              {!fuelMixData && fuelMixError && (
-                <p className="text-sm text-amber-700 mt-1">
-                  Fuel mix data failed: {fuelMixError.message || "Unknown error"}
-                </p>
-              )}
-              {!pricingData && pricingError && (
-                <p className="text-sm text-amber-700 mt-1">
-                  Pricing data failed: {pricingError.message || "Unknown error"} 
-                  {pricingError.message?.includes("timeout") && " (Grid Status API timeout - try a more recent date)"}
-                </p>
-              )}
-              {!pricingData && !pricingError && (
-                <p className="text-sm text-amber-700 mt-1">
-                  Pricing data unavailable for this location/date combination.
-                </p>
-              )}
+          {/* Loading state only when we have NO data at all */}
+          {!hasAnyData && pricingLoading && (
+            <div className="text-center p-8 text-gray-600 font-medium">
+              ⏳ Loading Pricing Data...
+              <div className="text-sm mt-2 text-gray-500">Fetching from Grid Status API{pricingRetryCount > 0 && ` (Retry ${pricingRetryCount}/3)`}...</div>
+              {fuelMixLoading && <div className="text-sm mt-2 text-gray-400">Also loading fuel mix data...</div>}
             </div>
           )}
-          {!isLoading && hasPartialData && (
+          
+          {/* Show critical error if pricing (primary data) fails */}
+          {!pricingData && pricingError && (
+            <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 mb-4 shadow-sm">
+              <p className="text-red-800 font-semibold">
+                {pricingError.message?.includes("Rate limit") ? "⏱️ Rate Limit Reached" : "❌ Pricing Data Failed"}
+              </p>
+              <p className="text-sm text-red-700 mt-1">
+                {pricingError.message || "Unknown error"}
+                {pricingError.message?.includes("timeout") && " (API timeout - Grid Status may be slow)"}
+                {pricingError.message?.includes("Rate limit") && " Automatic retry in progress with extended delays."}
+                {pricingRetryCount > 0 && ` - Attempted ${pricingRetryCount} retries`}
+              </p>
+              <p className="text-sm text-red-600 mt-2 font-medium">Cannot display chart without pricing data.</p>
+            </div>
+          )}
+          
+          {/* Show fuel mix status as secondary/enhancement data */}
+          {hasPricingData && !hasFuelMixData && fuelMixLoading && (
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4 shadow-sm">
+              <p className="text-blue-800 font-semibold">⏳ Loading Fuel Mix Data...</p>
+              <p className="text-sm text-blue-700 mt-1">
+                Fetching fuel generation mix{fuelMixRetryCount > 0 && ` (Retry ${fuelMixRetryCount}/3)`}...
+              </p>
+              <p className="text-sm text-blue-600 mt-1">Pricing data loaded. Chart showing pricing only.</p>
+            </div>
+          )}
+          
+          {hasPricingData && !hasFuelMixData && fuelMixError && (
+            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4 mb-4 shadow-sm">
+              <p className="text-amber-800 font-semibold">ℹ️ Fuel Mix Data Unavailable</p>
+              <p className="text-sm text-amber-700 mt-1">
+                {fuelMixError.message || "Unknown error"}
+                {fuelMixRetryCount > 0 && ` (Attempted ${fuelMixRetryCount} retries)`}
+              </p>
+              <p className="text-sm text-amber-600 mt-1">Showing pricing data only - fuel mix enhancement unavailable.</p>
+            </div>
+          )}
+          
+          {/* Render chart when pricing data (primary) is available */}
+          {hasAnyData && (
             <>
               <CombinedChart 
                 fuelMixData={fuelMixData?.hourly || []} 

@@ -15,8 +15,8 @@ import { SOURCE_COLORS } from "@/lib/energyData";
 import { HistoricalRecord, LMPDataPoint } from "@/types/energy";
 
 interface CombinedChartProps {
-  fuelMixData: HistoricalRecord[];
-  pricingData: LMPDataPoint[];
+  fuelMixData: HistoricalRecord[]; // Secondary/enhancement data (optional)
+  pricingData: LMPDataPoint[]; // Primary data (required for chart display)
 }
 
 type DataKey = 'gas' | 'coal' | 'oil' | 'nuclear' | 'solar' | 'wind' | 'hydro' | 'other' | 'lmp' | 'energy' | 'congestion' | 'loss';
