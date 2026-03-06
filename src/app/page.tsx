@@ -21,7 +21,55 @@ export default function Home() {
   const [date, setDate] = useState(getYesterday());
   const [view, setView] = useState<"fuel-mix" | "pricing">("fuel-mix");
   const [node, setNode] = useState<string>("CAPITL");
+  const [address, setAddress] = useState<string>("");
+  const [isLocating, setIsLocating] = useState(false);
+  const [geocodeMessage, setGeocodeMessage] = useState<string>("");
   const [queryKey, setQueryKey] = useState<string | null>(null);
+
+  const handleLocate = async () => {
+    if (!address.trim()) {
+      setGeocodeMessage("Please enter an address");
+      return;
+    }
+
+    setIsLocating(true);
+    setGeocodeMessage("");
+
+    try {
+      const response = await fetch(
+        `/api/geocode?address=${encodeURIComponent(address)}`
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        setGeocodeMessage(data.error || "Failed to geocode address");
+        return;
+      }
+
+      if (data.iso) {
+        setLocation(data.iso);
+        // Always update node from geocode result
+        if (data.suggestedNode) {
+          setNode(data.suggestedNode);
+        } else if (data.zone) {
+          setNode(data.zone);
+        }
+        setGeocodeMessage(
+          `Found: ${data.display_name} → ${data.iso}${data.zone ? ` (${data.zone})` : ""}`
+        );
+        console.log("Geocode result:", { iso: data.iso, zone: data.zone, suggestedNode: data.suggestedNode });
+      } else {
+        setGeocodeMessage(
+          data.message || "Location not in a supported ISO region"
+        );
+      }
+    } catch (error) {
+      setGeocodeMessage("Error locating address");
+      console.error("Geocode error:", error);
+    } finally {
+      setIsLocating(false);
+    }
+  };
 
   const handleUpdate = () => {
     if (view === "pricing") {
@@ -53,35 +101,37 @@ export default function Home() {
       <main className="min-h-screen p-6 md:p-10">
         <header className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">MixFix</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Electricity generation mix and pricing data
-          </p>
         </header>
 
-        {/* View Toggle */}
-        <div className="mb-4">
-          <div className="inline-flex rounded-lg bg-white/5 p-1">
+        {/* Address Geocoding */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Find Your Operating Region & Node
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleLocate();
+                }
+              }}
+              placeholder="Enter address (e.g., 123 Main St, New York, NY)"
+              className="flex-1 bg-white/10 border border-white/20 rounded-md px-3 py-2"
+            />
             <button
-              onClick={() => setView("fuel-mix")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                view === "fuel-mix"
-                  ? "bg-sky-600 text-white"
-                  : "text-gray-300 hover:text-white"
-              }`}
+              onClick={handleLocate}
+              disabled={isLocating}
+              className="bg-green-600 hover:bg-green-500 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-md px-6 py-2 font-semibold transition-colors"
             >
-              Fuel Mix
-            </button>
-            <button
-              onClick={() => setView("pricing")}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                view === "pricing"
-                  ? "bg-sky-600 text-white"
-                  : "text-gray-300 hover:text-white"
-              }`}
-            >
-              Pricing (LMP)
+              {isLocating ? "→" : "→"}
             </button>
           </div>
+          {geocodeMessage && (
+            <p className="text-xs text-gray-400 mt-2">{geocodeMessage}</p>
+          )}
         </div>
 
         {/* Form Controls */}
@@ -106,7 +156,7 @@ export default function Home() {
               htmlFor="location"
               className="block text-sm font-medium text-gray-300 mb-2"
             >
-              Location:
+              Operating Region (ISO/RTO BA):
             </label>
             <input
               id="location"
@@ -117,30 +167,54 @@ export default function Home() {
               className="bg-white/10 border border-white/20 rounded-md px-3 py-2 w-full"
             />
           </div>
-          {view === "pricing" && (
-            <div className="flex-1 min-w-[200px]">
-              <label
-                htmlFor="node"
-                className="block text-sm font-medium text-gray-300 mb-2"
-              >
-                Node:
-              </label>
-              <input
-                id="node"
-                type="text"
-                value={node}
-                onChange={(e) => setNode(e.target.value.toUpperCase())}
-                placeholder="e.g., CAPITL, CENTRL"
-                className="bg-white/10 border border-white/20 rounded-md px-3 py-2 w-full"
-              />
-            </div>
-          )}
+          <div className="flex-1 min-w-[200px]">
+            <label
+              htmlFor="node"
+              className="block text-sm font-medium text-gray-300 mb-2"
+            >
+              Node:
+            </label>
+            <input
+              id="node"
+              type="text"
+              value={node}
+              onChange={(e) => setNode(e.target.value.toUpperCase())}
+              placeholder="e.g., CAPITL, CENTRL"
+              className="bg-white/10 border border-white/20 rounded-md px-3 py-2 w-full"
+            />
+          </div>
           <button
             onClick={handleUpdate}
             className="bg-sky-600 hover:bg-sky-500 rounded-md px-6 py-2 font-semibold transition-colors h-[42px]"
           >
             Update
           </button>
+        </div>
+
+        {/* View Toggle */}
+        <div className="mt-4 mb-4">
+          <div className="inline-flex rounded-lg bg-white/5 p-1">
+            <button
+              onClick={() => setView("fuel-mix")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                view === "fuel-mix"
+                  ? "bg-sky-600 text-white"
+                  : "text-gray-300 hover:text-white"
+              }`}
+            >
+              Fuel Mix
+            </button>
+            <button
+              onClick={() => setView("pricing")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                view === "pricing"
+                  ? "bg-sky-600 text-white"
+                  : "text-gray-300 hover:text-white"
+              }`}
+            >
+              Pricing (LMP)
+            </button>
+          </div>
         </div>
 
         {/* Data Display */}

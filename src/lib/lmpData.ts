@@ -10,16 +10,16 @@ const GRID_STATUS_BASE = "https://api.gridstatus.io/v1";
 const ISO_LMP_DATASET_MAP: Record<string, string> = {
   NYISO: "nyiso_lmp_real_time_hourly",
   NYIS: "nyiso_lmp_real_time_hourly",
-  CAISO: "caiso_lmp_real_time_hourly",
-  CISO: "caiso_lmp_real_time_hourly",
-  ERCOT: "ercot_lmp_real_time_hourly",
-  ERCO: "ercot_lmp_real_time_hourly",
-  ISONE: "isone_lmp_real_time_hourly",
-  ISNE: "isone_lmp_real_time_hourly",
-  MISO: "miso_lmp_real_time_hourly",
+  CAISO: "caiso_lmp_real_time_15_min", // No hourly available, will aggregate
+  CISO: "caiso_lmp_real_time_15_min",
+  ERCOT: "ercot_lmp_by_settlement_point", // 15-min intervals
+  ERCO: "ercot_lmp_by_settlement_point",
+  ISONE: "isone_lmp_real_time_hourly_final",
+  ISNE: "isone_lmp_real_time_hourly_final",
+  MISO: "miso_lmp_real_time_hourly_final",
   PJM: "pjm_lmp_real_time_hourly",
-  SPP: "spp_lmp_real_time_hourly",
-  SWPP: "spp_lmp_real_time_hourly",
+  SPP: "spp_lmp_real_time_5_min", // No hourly available, will aggregate
+  SWPP: "spp_lmp_real_time_5_min",
 };
 
 // ---------------------------------------------------------------------------
@@ -48,6 +48,46 @@ interface GridStatusLMPResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Aggregate sub-hourly LMP data (15-min or 5-min) to hourly by averaging
+ */
+function aggregateToHourly(data: LMPDataPoint[]): LMPDataPoint[] {
+  const hourlyMap = new Map<string, LMPDataPoint[]>();
+
+  // Group by hour
+  for (const point of data) {
+    const hourKey = point.time.substring(0, 13); // "2024-03-01T05"
+    if (!hourlyMap.has(hourKey)) {
+      hourlyMap.set(hourKey, []);
+    }
+    hourlyMap.get(hourKey)!.push(point);
+  }
+
+  // Average each hour's data
+  const hourlyData: LMPDataPoint[] = [];
+  for (const [hourKey, points] of hourlyMap) {
+    const count = points.length;
+    const avgLMP = points.reduce((sum, p) => sum + p.lmp, 0) / count;
+    const avgEnergy = points.reduce((sum, p) => sum + p.energy, 0) / count;
+    const avgCongestion = points.reduce((sum, p) => sum + p.congestion, 0) / count;
+    const avgLoss = points.reduce((sum, p) => sum + p.loss, 0) / count;
+
+    hourlyData.push({
+      time: `${hourKey}:00:00+00:00`,
+      lmp: Number(avgLMP.toFixed(2)),
+      energy: Number(avgEnergy.toFixed(2)),
+      congestion: Number(avgCongestion.toFixed(2)),
+      loss: Number(avgLoss.toFixed(2)),
+    });
+  }
+
+  return hourlyData.sort((a, b) => a.time.localeCompare(b.time));
+}
+
+// ---------------------------------------------------------------------------
 // Public API Functions
 // ---------------------------------------------------------------------------
 
@@ -55,7 +95,8 @@ interface GridStatusLMPResponse {
  * Check if an ISO is supported for LMP data via Grid Status
  */
 export function isLMPSupported(iso: string): boolean {
-  return iso.toUpperCase() in ISO_LMP_DATASET_MAP;
+  const isoUpper = iso.toUpperCase();
+  return !!ISO_LMP_DATASET_MAP[isoUpper];
 }
 
 /**
@@ -86,7 +127,18 @@ export async function fetchLMPHourly(
   const startTime = `${date}T00:00:00Z`;
   const endTime = `${date}T23:59:59Z`;
 
-  const url = `${GRID_STATUS_BASE}/datasets/${datasetId}/query?start_time=${startTime}&end_time=${endTime}&limit=50000`;
+  // Use server-side filtering by location for efficiency
+  const locationFilter = `&filter_column=location&filter_value=${encodeURIComponent(node)}`;
+  
+  // For sub-hourly datasets (15-min, 5-min), use API resampling to hourly
+  const needsResampling = ['CAISO', 'CISO', 'ERCOT', 'ERCO', 'SPP', 'SWPP'].includes(isoUpper);
+  const resampleParams = needsResampling
+    ? '&resample_frequency=1 hour&resample_by=location&resample_function=mean'
+    : '';
+
+  const url = `${GRID_STATUS_BASE}/datasets/${datasetId}/query?start_time=${startTime}&end_time=${endTime}${locationFilter}${resampleParams}&limit=100`;
+
+  console.log('Fetching LMP data:', { iso, node, date, needsResampling });
 
   const response = await fetch(url, {
     headers: {
@@ -95,6 +147,8 @@ export async function fetchLMPHourly(
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Grid Status API error:', response.status, errorText);
     throw new Error(
       `Grid Status API error: ${response.status} ${response.statusText}`
     );
@@ -102,13 +156,27 @@ export async function fetchLMPHourly(
 
   const json: GridStatusLMPResponse = await response.json();
 
-  // Filter for the specific node and convert to hourly data
-  const nodeData = json.data.filter(
-    (d) => d.location.toUpperCase() === node.toUpperCase()
-  );
+  console.log('LMP data received:', { 
+    totalRecords: json.data.length,
+    sampleLocation: json.data[0]?.location,
+    sampleLocationType: json.data[0]?.location_type,
+  });
+
+  // For NYISO, filter to Zone-level data only (not nodal) since location name alone
+  // may match both zones and nodes
+  let filteredData = json.data;
+  if (isoUpper === 'NYISO' || isoUpper === 'NYIS') {
+    filteredData = json.data.filter(d => d.location_type === 'Zone');
+    console.log('Filtered to NYISO zones:', { total: json.data.length, zones: filteredData.length });
+  }
+
+  if (filteredData.length === 0) {
+    console.warn('No data found for node:', node);
+    return [];
+  }
 
   // Map to our LMP format
-  const lmpData: LMPDataPoint[] = nodeData.map((d) => ({
+  const lmpData: LMPDataPoint[] = filteredData.map((d) => ({
     time: d.interval_start_utc,
     lmp: d.lmp,
     energy: d.energy,
