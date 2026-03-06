@@ -28,6 +28,18 @@ npm run build     # production build
 npm run lint      # ESLint
 ```
 
+### Environment Variables
+
+Copy `.env.local.example` to `.env.local` and add your API keys:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Required keys:
+- `EIA_API_KEY` - Get a free key at https://www.eia.gov/opendata/register.php
+- `GRID_API_KEY` - Get a key at https://www.gridstatus.io
+
 ---
 
 ## Project structure
@@ -53,15 +65,23 @@ src/
 
 ---
 
-## Data sources (planned)
+## Data sources
 
-- [Electricity Maps API](https://api.electricitymap.org) — real-time grid carbon intensity & generation mix
-- [EIA Open Data](https://api.eia.gov) — US grid data
-- [ENTSO-E Transparency Platform](https://transparency.entsoe.eu) — European grid
-- [Ember Climate](https://ember-climate.org/data/) — global historical generation data
-- Private sources TBD
+**Currently integrated:**
+- ✅ [Grid Status API](https://www.gridstatus.io) — Real-time ISO data (primary source)
+  - 5-minute granularity for major ISOs
+  - NYISO, CAISO, ERCOT, ISONE, MISO, PJM, SPP
+  - Auto-fallback to EIA if unavailable
+- ✅ [EIA Open Data](https://api.eia.gov) — US grid hourly generation data (fallback)
+  - 75 respondents including utilities and regional aggregations
+  - Historical data back to 2015
 
-All data integration goes in `src/app/api/energy/route.ts` and `src/lib/energyData.ts`.
+**Planned:**
+- [ ] [Electricity Maps API](https://api.electricitymap.org) — real-time grid carbon intensity & generation mix
+- [ ] [ENTSO-E Transparency Platform](https://transparency.entsoe.eu) — European grid
+- [ ] [Ember Climate](https://ember-climate.org/data/) — global historical generation data
+
+See [docs/API_SOURCES.md](docs/API_SOURCES.md) for detailed integration notes.
 
 ---
 

@@ -44,12 +44,6 @@ export default function Home() {
   return (
     <SWRConfig value={swrConfig}>
     <main className="min-h-screen p-6 md:p-10">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">MixFix</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          Hourly electricity generation mix
-        </p>
-      </header>
       <div className="flex flex-wrap gap-3 items-end">
         <div>
           <label htmlFor="date-picker" className="block text-sm font-medium text-gray-300 mb-2">
@@ -86,7 +80,26 @@ export default function Home() {
 
       <div className="mt-8">
         {isLoadingHourly && <div className="text-center p-8">Loading hourly data...</div>}
-        {hourlyData && <HourlyMixChart data={hourlyData.hourly} />}
+        {hourlyData && (
+          <>
+            <HourlyMixChart data={hourlyData.hourly} />
+            {hourlyData.meta && (
+              <div className="text-xs text-gray-500 mt-4 text-center">
+                Data source:{" "}
+                <a
+                  href={hourlyData.meta.source === 'grid-status' ? 'https://www.gridstatus.io' : 'https://www.eia.gov'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-sky-500 hover:text-sky-400 underline"
+                >
+                  {hourlyData.meta.source === 'grid-status' ? 'Grid Status' : 'EIA'}
+                </a>
+                {" • "}
+                {hourlyData.meta.location} • {hourlyData.meta.date}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </main>
     </SWRConfig>
