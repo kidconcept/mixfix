@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   ComposedChart,
   Area,
@@ -8,7 +9,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from "recharts";
 import { SOURCE_COLORS } from "@/lib/energyData";
@@ -19,7 +19,80 @@ interface CombinedChartProps {
   pricingData: LMPDataPoint[];
 }
 
+type DataKey = 'gas' | 'coal' | 'oil' | 'nuclear' | 'solar' | 'wind' | 'hydro' | 'other' | 'lmp' | 'energy' | 'congestion' | 'loss';
+
+interface LegendGroup {
+  name: string;
+  items: DataKey[];
+}
+
+const LEGEND_GROUPS: LegendGroup[] = [
+  {
+    name: "Pricing",
+    items: ['lmp', 'energy', 'congestion', 'loss']
+  },
+  {
+    name: "Renewables",
+    items: ['solar', 'wind', 'hydro', 'other']
+  },
+  {
+    name: "Consumables",
+    items: ['gas', 'coal', 'oil', 'nuclear']
+  }
+];
+
+const PRICING_COLORS: Record<string, string> = {
+  lmp: "#2D8659",
+  energy: "#4CAF7D",
+  congestion: "#6BC99A",
+  loss: "#8FD9B3"
+};
+
 export default function CombinedChart({ fuelMixData, pricingData }: CombinedChartProps) {
+  // Track visibility state for each data series
+  const [visibility, setVisibility] = useState<Record<DataKey, boolean>>({
+    gas: true,
+    coal: true,
+    oil: true,
+    nuclear: true,
+    solar: true,
+    wind: true,
+    hydro: true,
+    other: true,
+    lmp: true,
+    energy: true,
+    congestion: true,
+    loss: true,
+  });
+
+  const toggleItem = (key: DataKey) => {
+    // Show only the clicked item, hide everything else
+    const newState: Record<DataKey, boolean> = {
+      gas: false,
+      coal: false,
+      oil: false,
+      nuclear: false,
+      solar: false,
+      wind: false,
+      hydro: false,
+      other: false,
+      lmp: false,
+      energy: false,
+      congestion: false,
+      loss: false,
+    };
+    newState[key] = true;
+    setVisibility(newState);
+  };
+
+  const toggleGroup = (group: LegendGroup) => {
+    const allVisible = group.items.every(item => visibility[item]);
+    const newState = { ...visibility };
+    group.items.forEach(item => {
+      newState[item] = !allVisible;
+    });
+    setVisibility(newState);
+  };
   if ((!fuelMixData || fuelMixData.length === 0) && (!pricingData || pricingData.length === 0)) {
     return (
       <div className="text-center text-gray-500 py-8">
@@ -83,56 +156,56 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
   });
 
   return (
-    <div className="rounded-lg p-6" style={{ background: 'transparent' }}>
-      <h2 className="text-2xl font-semibold mb-6 text-gray-800">
-        Hourly Generation & Pricing
-      </h2>
-      <ResponsiveContainer width="100%" height={500}>
+    <div className="rounded-lg" style={{ background: 'transparent' }}>
+      {/* Y-axis labels above chart */}
+      <div className="flex justify-between items-center mb-2">
+        <div className="text-sm font-semibold" style={{ color: '#000000' }}>
+          Price in $/MWh
+        </div>
+        <div className="text-sm font-semibold" style={{ color: '#000000' }}>
+          Generation in GW
+        </div>
+      </div>
+      
+      {/* Chart and Legend Side-by-Side */}
+      <div className="flex flex-col landscape:flex-row gap-2">
+        {/* Chart */}
+        <div className="flex-1">
+          <ResponsiveContainer width="100%" height={500}>
         <ComposedChart
           data={combinedData}
           margin={{
-            top: 20,
-            right: 60,
-            left: 20,
-            bottom: 20,
+            top: 5,
+            right: 0,
+            left: 0,
+            bottom: 5,
           }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 0, 0, 0.08)" />
           
           <XAxis 
             dataKey="hour" 
-            stroke="#2D3436"
-            label={{ value: "Hour", position: "insideBottom", offset: -10, fill: "#2D3436", fontWeight: 500 }}
-            tick={{ fill: "#2D3436" }}
+            stroke="#000000"
+            label={{ value: "Hour", position: "insideBottom", offset: -10, fill: "#000000", fontWeight: 500 }}
+            tick={{ fill: "#000000" }}
+            height={40}
           />
           
           {/* Left Y-axis for Price */}
           <YAxis 
             yAxisId="price"
-            stroke="#2D8659"
-            label={{ 
-              value: "Price ($/MWh)", 
-              angle: -90, 
-              position: "insideLeft",
-              fill: "#2D8659",
-              fontWeight: 600
-            }}
-            tick={{ fill: "#2D8659", fontWeight: 500 }}
+            stroke="#000000"
+            tick={{ fill: "#000000", fontWeight: 500 }}
+            width={40}
           />
           
           {/* Right Y-axis for Generation */}
           <YAxis 
             yAxisId="generation"
             orientation="right"
-            stroke="#2D3436"
-            label={{ 
-              value: "Generation (GW)", 
-              angle: 90, 
-              position: "insideRight",
-              fill: "#2D3436",
-              fontWeight: 600
-            }}
-            tick={{ fill: "#2D3436", fontWeight: 500 }}
+            stroke="#000000"
+            tick={{ fill: "#000000", fontWeight: 500 }}
+            width={40}
           />
           
           <Tooltip
@@ -155,11 +228,6 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             }}
           />
           
-          <Legend 
-            wrapperStyle={{ paddingTop: "20px", fontFamily: "Inter, sans-serif" }}
-            iconType="rect"
-          />
-
           {/* Stacked areas for fuel mix (right Y-axis) - ordered: fossil fuels, nuclear, renewables, other */}
           <Area
             yAxisId="generation"
@@ -170,6 +238,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             fill={SOURCE_COLORS.gas}
             fillOpacity={0.95}
             name="Gas"
+            hide={!visibility.gas}
           />
           <Area
             yAxisId="generation"
@@ -180,6 +249,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             fill={SOURCE_COLORS.coal}
             fillOpacity={0.95}
             name="Coal"
+            hide={!visibility.coal}
           />
           <Area
             yAxisId="generation"
@@ -190,6 +260,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             fill={SOURCE_COLORS.oil}
             fillOpacity={0.95}
             name="Oil"
+            hide={!visibility.oil}
           />
           <Area
             yAxisId="generation"
@@ -200,6 +271,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             fill={SOURCE_COLORS.nuclear}
             fillOpacity={0.95}
             name="Nuclear"
+            hide={!visibility.nuclear}
           />
           <Area
             yAxisId="generation"
@@ -210,6 +282,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             fill={SOURCE_COLORS.solar}
             fillOpacity={0.95}
             name="Solar"
+            hide={!visibility.solar}
           />
           <Area
             yAxisId="generation"
@@ -220,6 +293,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             fill={SOURCE_COLORS.wind}
             fillOpacity={0.95}
             name="Wind"
+            hide={!visibility.wind}
           />
           <Area
             yAxisId="generation"
@@ -230,6 +304,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             fill={SOURCE_COLORS.hydro}
             fillOpacity={0.95}
             name="Hydro"
+            hide={!visibility.hydro}
           />
           <Area
             yAxisId="generation"
@@ -240,6 +315,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             fill={SOURCE_COLORS.other}
             fillOpacity={0.95}
             name="Other"
+            hide={!visibility.other}
           />
 
           {/* Lines for LMP components (left Y-axis) */}
@@ -252,6 +328,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             dot={{ fill: "#2D8659", r: 2 }}
             name="LMP"
             connectNulls
+            hide={!visibility.lmp}
           />
           <Line
             yAxisId="price"
@@ -262,6 +339,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             dot={false}
             name="Energy"
             connectNulls
+            hide={!visibility.energy}
           />
           <Line
             yAxisId="price"
@@ -272,6 +350,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             dot={false}
             name="Congestion"
             connectNulls
+            hide={!visibility.congestion}
           />
           <Line
             yAxisId="price"
@@ -282,9 +361,69 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             dot={false}
             name="Loss"
             connectNulls
+            hide={!visibility.loss}
           />
         </ComposedChart>
       </ResponsiveContainer>
+        </div>
+        
+        {/* Custom Grouped Legend */}
+        <div className="space-y-2 landscape:w-auto flex-shrink-0">
+        {LEGEND_GROUPS.map((group) => {
+          const allVisible = group.items.every(item => visibility[item]);
+          const someVisible = group.items.some(item => visibility[item]);
+          
+          return (
+            <div key={group.name}>
+              {/* Group Header */}
+              <button
+                onClick={() => toggleGroup(group)}
+                className="text-sm font-semibold text-gray-700 hover:text-teal-600 transition-colors mb-1 flex items-center gap-2"
+              >
+                <span className={allVisible ? '' : 'line-through opacity-60'}>
+                  {group.name}
+                </span>
+              </button>
+              
+              {/* Individual Items */}
+              <div className="flex flex-col gap-1">
+                {group.items.map((item) => {
+                  const isVisible = visibility[item];
+                  const color = item in SOURCE_COLORS 
+                    ? SOURCE_COLORS[item as keyof typeof SOURCE_COLORS]
+                    : PRICING_COLORS[item];
+                  const label = item.charAt(0).toUpperCase() + item.slice(1);
+                  
+                  return (
+                    <button
+                      key={item}
+                      onClick={() => toggleItem(item)}
+                      className={`flex items-center gap-2 px-3 py-1 rounded-md text-sm transition-all w-full ${
+                        isVisible 
+                          ? 'bg-white/80 hover:bg-white shadow-sm' 
+                          : 'bg-gray-100 opacity-50 hover:opacity-70'
+                      }`}
+                    >
+                      <span
+                        className="w-4 h-4 rounded"
+                        style={{ 
+                          backgroundColor: color,
+                          opacity: isVisible ? 1 : 0.3
+                        }}
+                      />
+                      <span className={`font-medium ${isVisible ? 'text-gray-800' : 'text-gray-500 line-through'}`}>
+                        {label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+        </div>
+      </div>
+      
       <div className="text-sm text-gray-600 mt-4">
         {hasPricingData ? (
           <p>
