@@ -14,10 +14,12 @@
   --text-secondary: #3e3e3e;
   
   /* Interactive Colors */
+  --interactive-primary: #2b8bd9;
   --active: #bce3e7;
   
   /* Status Colors */
   --alert: #fb4635;
+  --message: #35fb9b;
   
   /* UI Utilities */
   --border-subtle: rgba(0, 0, 0, 0.1);

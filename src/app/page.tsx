@@ -49,7 +49,9 @@ export default function Home() {
   const [fuelMixKey, setFuelMixKey] = useState<string | null>(null);
   const [pricingKey, setPricingKey] = useState<string | null>(null);
   const [dateFocused, setDateFocused] = useState(false);
+  const [dateHovered, setDateHovered] = useState(false);
   const [addressFocused, setAddressFocused] = useState(false);
+  const [addressHovered, setAddressHovered] = useState(false);
   const [fuelMixRetryCount, setFuelMixRetryCount] = useState(0);
   const [pricingRetryCount, setPricingRetryCount] = useState(0);
   
@@ -280,14 +282,19 @@ export default function Home() {
                 dateInputRef.current?.showPicker?.();
               }}
               className="transition-colors flex-shrink-0"
-              style={{ color: 'var(--text-secondary)' }}
+              style={{ color: 'var(--interactive-primary)' }}
               tabIndex={-1}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </button>
-            <div className="relative inline-flex items-center border rounded-lg px-3 transition-all" style={{ borderColor: dateFocused ? 'var(--active)' : 'transparent', height: '38px' }}>
+            <div 
+              className="relative inline-flex items-center border rounded-lg px-3 transition-all" 
+              style={{ borderColor: (dateFocused || dateHovered) ? 'var(--active)' : 'transparent', height: '38px' }}
+              onMouseEnter={() => setDateHovered(true)}
+              onMouseLeave={() => setDateHovered(false)}
+            >
               <input
                 ref={dateInputRef}
                 type="date"
@@ -319,7 +326,7 @@ export default function Home() {
                   dateInputRef.current?.blur();
                 }}
                 className="transition-colors flex-shrink-0"
-                style={{ color: 'var(--text-secondary)' }}
+                style={{ color: 'var(--interactive-primary)', paddingLeft: '4px' }}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -334,14 +341,19 @@ export default function Home() {
               <button
                 onClick={() => addressInputRef.current?.focus()}
                 className="transition-colors flex-shrink-0"
-                style={{ color: 'var(--text-secondary)' }}
+                style={{ color: 'var(--interactive-primary)' }}
                 tabIndex={-1}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </button>
-              <div className="relative inline-flex items-center border rounded-lg px-3 transition-all" style={{ borderColor: addressFocused ? 'var(--active)' : 'transparent', height: '38px' }}>
+              <div 
+                className="relative inline-flex items-center border rounded-lg px-3 transition-all" 
+                style={{ borderColor: (addressFocused || addressHovered) ? 'var(--active)' : 'transparent', height: '38px' }}
+                onMouseEnter={() => setAddressHovered(true)}
+                onMouseLeave={() => setAddressHovered(false)}
+              >
                 <input
                   ref={addressInputRef}
                   type="text"
@@ -374,7 +386,7 @@ export default function Home() {
                   }}
                   disabled={isLocating}
                   className="transition-colors disabled:opacity-50 flex-shrink-0"
-                  style={{ color: 'var(--text-secondary)' }}
+                  style={{ color: 'var(--interactive-primary)', paddingLeft: '4px' }}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -441,10 +453,10 @@ export default function Home() {
         <div className="mt-8">
           {/* Loading state only when we have NO data at all */}
           {!hasAnyData && pricingLoading && (
-            <div className="text-center p-8 font-medium" style={{ color: 'var(--text-secondary)' }}>
-              ⏳ Loading Pricing Data...
-              <div className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Fetching from Grid Status API{pricingRetryCount > 0 && ` (Retry ${pricingRetryCount}/3)`}...</div>
-              {fuelMixLoading && <div className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Also loading fuel mix data...</div>}
+            <div className="border-2 rounded-lg px-4 py-3.5 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--message)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                ⏳ Loading Pricing Data{pricingRetryCount > 0 && ` (Retry ${pricingRetryCount}/3)`}{fuelMixLoading && ' and Fuel Mix Data'}...
+              </p>
             </div>
           )}
           
@@ -466,12 +478,10 @@ export default function Home() {
           
           {/* Show fuel mix status as secondary/enhancement data */}
           {hasPricingData && !hasFuelMixData && fuelMixLoading && (
-            <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
-              <p className="font-semibold" style={{ color: 'var(--alert)' }}>⏳ Loading Fuel Mix Data...</p>
-              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
-                Fetching fuel generation mix{fuelMixRetryCount > 0 && ` (Retry ${fuelMixRetryCount}/3)`}...
+            <div className="border-2 rounded-lg px-4 py-3.5 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--message)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                ⏳ Loading Fuel Mix Data{fuelMixRetryCount > 0 && ` (Retry ${fuelMixRetryCount}/3)`}...
               </p>
-              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>Pricing data loaded. Chart showing pricing only.</p>
             </div>
           )}
           
@@ -506,7 +516,7 @@ export default function Home() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-semibold underline"
-                        style={{ color: 'var(--active)' }}
+                        style={{ color: 'var(--interactive-primary)' }}
                       >
                         EIA API v2
                       </a>
@@ -527,7 +537,7 @@ export default function Home() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-semibold underline"
-                        style={{ color: 'var(--active)' }}
+                        style={{ color: 'var(--interactive-primary)' }}
                       >
                         Grid Status API
                       </a>

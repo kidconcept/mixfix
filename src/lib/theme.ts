@@ -17,10 +17,16 @@ export interface ColorTheme {
   };
   
   // Interactive
-  active: string;       // Active/hover states, links, accents
+  interactive: {
+    primary: string;    // Buttons, links
+    active: string;       // Active/hover states, links, accents
+  }
   
   // Status
-  alert: string;        // Alerts, warnings, status messages
+  status: {
+    alert: string;        // Alerts, warnings, status messages
+    message: string;      // Informational messages
+  };
   
   // Chart: Fuel Mix (12 colors: 8 renewables + 4 consumables)
   fuelMix: {
@@ -59,8 +65,14 @@ export const lightTheme: ColorTheme = {
     primary: '#161516',    // Nearly black text
     secondary: '#3e3e3e',  // Dark gray text
   },
-  active: '#bce3e7',       // Light cyan for interactive elements
-  alert: '#fb4635',        // Coral red for alerts
+  status: {
+    alert: '#fb4635',        // Coral red for alerts
+    message: '#28cf7e',        // Mint green for messages
+  },
+  interactive: {
+    primary: '#2b8bd9',    // Blue for buttons/links
+    active: '#bce3e7',     // Light cyan for interactive elements
+  },
   fuelMix: {
     // Renewables (8)
     solar: '#e5efee',       // Very light mint
@@ -95,8 +107,14 @@ export const darkTheme: ColorTheme = {
     primary: '#e5e7eb',    // Light gray for main text
     secondary: '#9ca3af',  // Medium gray for secondary text
   },
-  active: '#f3e0c0',       // Same as light theme
-  alert: '#e89c79',        // Same as light theme
+  interactive: {
+    primary: '#f3e0c0',       // Same as light theme
+    active: '#f3e0c0',        // Same as light theme
+  },
+  status: {
+    alert: '#e89c79',        // Same as light theme
+    message: '#35fb9b',      // Same as light theme
+  },
   fuelMix: {
     // Keep fuel mix colors same for consistency in dark mode
     solar: '#a1d0cf',
