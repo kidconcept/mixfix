@@ -164,6 +164,22 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
 
   const hasPricingData = pricingData && pricingData.length > 0;
 
+  // Extract and format the date from the data
+  const getFormattedDate = (): string => {
+    const dateStr = pricingData?.[0]?.time || fuelMixData?.[0]?.date;
+    if (!dateStr) return "";
+    
+    const date = new Date(dateStr);
+    const options: Intl.DateTimeFormatOptions = { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    const formattedDate = date.toLocaleDateString('en-US', options);
+    const tz = location ? getTimezoneAbbreviation(location) : "";
+    return tz ? `${formattedDate} (${tz})` : formattedDate;
+  };
+
   // Process fuel mix data by hour
   const fuelByHour: Record<number, HistoricalRecord> = {};
   if (fuelMixData && fuelMixData.length > 0) {
@@ -237,13 +253,6 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
 
   return (
     <div className="rounded-lg" style={{ background: 'transparent' }}>
-      {/* Y-axis labels above chart */}
-      <div className="flex justify-end items-center mb-2">
-        <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Generation in GW
-        </div>
-      </div>
-      
       {/* Chart and Legend Side-by-Side */}
       <div className="flex flex-col landscape:flex-row gap-2">
         {/* Chart */}
@@ -252,7 +261,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
         <ComposedChart
           data={combinedData}
           margin={{
-            top: 5,
+            top: 30,
             right: 0,
             left: 0,
             bottom: 25,
@@ -264,11 +273,12 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             dataKey="hour" 
             stroke="var(--text-primary)"
             label={{ 
-              value: location ? `Hour (${getTimezoneAbbreviation(location)})` : "Hour", 
+              value: getFormattedDate(), 
               position: "insideBottom", 
               offset: -10, 
               fill: "var(--text-primary)", 
-              fontWeight: 500 
+              fontWeight: 400,
+              fontSize: 14
             }}
             tick={{ fill: "var(--text-primary)" }}
             tickFormatter={(value) => (value % 2 === 0 && value !== 0 && value !== 24) ? value.toString() : ''}
@@ -279,8 +289,19 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
           <YAxis 
             yAxisId="price"
             stroke="var(--text-primary)"
-            tick={{ fill: "var(--text-primary)", fontWeight: 500 }}
+            tick={{ fill: "var(--text-primary)" }}
             width={40}
+            label={{ 
+              value: "Pricing in $/MWh", 
+              angle: 0, 
+              position: "insideTopLeft",
+              offset: -23,
+              dx: 65,
+              fill: "var(--text-primary)", 
+              fontWeight: 400,
+              fontSize: 14,
+              textAnchor: "start"
+            }}
           />
           
           {/* Right Y-axis for Generation */}
@@ -288,8 +309,19 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             yAxisId="generation"
             orientation="right"
             stroke="var(--text-primary)"
-            tick={{ fill: "var(--text-primary)", fontWeight: 500 }}
+            tick={{ fill: "var(--text-primary)" }}
             width={40}
+            label={{ 
+              value: "Generation in GW", 
+              angle: 0, 
+              position: "insideTopRight",
+              offset: -23,
+              dx: -60,
+              fill: "var(--text-primary)", 
+              fontWeight: 400,
+              fontSize: 14,
+              textAnchor: "end"
+            }}
           />
           
           <Tooltip content={<CustomTooltip keysWithData={keysWithData} />} />
@@ -511,6 +543,36 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
                 className="text-sm font-semibold transition-colors mb-1 flex items-center gap-2"
                 style={{ color: 'var(--text-primary)' }}
               >
+                <div className="relative flex items-center justify-center w-3.5 h-3.5">
+                  <input
+                    type="checkbox"
+                    checked={allVisible}
+                    onChange={toggleThisGroup}
+                    onClick={(e) => e.stopPropagation()}
+                    className="appearance-none w-3.5 h-3.5 border-2 rounded cursor-pointer transition-colors"
+                    style={{ 
+                      borderColor: allVisible ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    }}
+                  />
+                  {allVisible && (
+                    <svg 
+                      className="absolute pointer-events-none" 
+                      width="10" 
+                      height="10" 
+                      viewBox="0 0 12 12"
+                      style={{ left: '2px', top: '2px' }}
+                    >
+                      <path 
+                        d="M2 6L5 9L10 3" 
+                        stroke="var(--text-primary)" 
+                        strokeWidth="2" 
+                        fill="none" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </div>
                 <span className={allVisible ? '' : 'line-through opacity-60'}>
                   {group.name}
                 </span>
