@@ -10,16 +10,19 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  TooltipProps,
 } from "recharts";
-import { SOURCE_COLORS } from "@/lib/energyData";
+import { SOURCE_COLORS, PRICING_COLORS } from "@/lib/theme";
 import { HistoricalRecord, LMPDataPoint } from "@/types/energy";
+import { getTimezoneAbbreviation } from "@/lib/timezone";
 
 interface CombinedChartProps {
   fuelMixData: HistoricalRecord[]; // Secondary/enhancement data (optional)
   pricingData: LMPDataPoint[]; // Primary data (required for chart display)
+  location?: string; // ISO/RTO identifier for timezone display
 }
 
-type DataKey = 'gas' | 'coal' | 'oil' | 'nuclear' | 'solar' | 'wind' | 'hydro' | 'other' | 'lmp' | 'energy' | 'congestion' | 'loss';
+type DataKey = 'solar' | 'wind' | 'hydro' | 'geothermal' | 'biomass' | 'batteries' | 'imports' | 'other' | 'coal' | 'gas' | 'oil' | 'nuclear' | 'lmp' | 'energy' | 'congestion' | 'loss';
 
 interface LegendGroup {
   name: string;
@@ -33,32 +36,83 @@ const LEGEND_GROUPS: LegendGroup[] = [
   },
   {
     name: "Renewables",
-    items: ['solar', 'wind', 'hydro', 'other']
+    items: ['solar', 'wind', 'hydro', 'geothermal', 'biomass', 'batteries', 'imports', 'other']
   },
   {
     name: "Consumables",
-    items: ['gas', 'coal', 'oil', 'nuclear']
+    items: ['coal', 'gas', 'oil', 'nuclear']
   }
 ];
 
-const PRICING_COLORS: Record<string, string> = {
-  lmp: "#2D8659",
-  energy: "#4CAF7D",
-  congestion: "#6BC99A",
-  loss: "#8FD9B3"
+// Custom Tooltip Component
+const CustomTooltip = ({ 
+  active, 
+  payload, 
+  label,
+  keysWithData 
+}: TooltipProps<any, any> & { keysWithData: Set<DataKey> }) => {
+  if (!active || !payload || !payload.length) return null;
+
+  // Filter payload to only show items with data across the time range
+  const filteredPayload = payload.filter(item => {
+    const dataKey = item.dataKey as DataKey;
+    return keysWithData.has(dataKey);
+  });
+
+  if (filteredPayload.length === 0) return null;
+
+  return (
+    <div 
+      style={{
+        backgroundColor: "var(--bg-secondary)",
+        border: "1px solid var(--border-subtle)",
+        borderRadius: "8px",
+        boxShadow: "0 4px 6px var(--shadow-subtle)",
+        fontFamily: "Inter, sans-serif",
+        padding: "8px 12px",
+      }}
+    >
+      <div style={{ color: "var(--text-primary)", fontWeight: 600, marginBottom: "4px" }}>
+        {label === 24 ? 'Hour 0:00 (next day)' : `Hour ${label}:00`}
+      </div>
+      {filteredPayload.map((item, index) => {
+        const dataKey = String(item.dataKey || '');
+        const isPricing = ["lmp", "energy", "congestion", "loss"].includes(dataKey.toLowerCase());
+        const displayName = dataKey ? 
+          (isPricing ? dataKey.toUpperCase() : dataKey.charAt(0).toUpperCase() + dataKey.slice(1))
+          : item.name;
+        const formattedValue = isPricing 
+          ? `$${Number(item.value).toFixed(2)}/MWh`
+          : `${Number(item.value).toFixed(2)} GW`;
+        
+        return (
+          <div key={index} style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
+            <span style={{ color: item.color }}>{displayName}</span>: {formattedValue}
+          </div>
+        );
+      })}
+    </div>
+  );
 };
 
-export default function CombinedChart({ fuelMixData, pricingData }: CombinedChartProps) {
+export default function CombinedChart({ fuelMixData, pricingData, location }: CombinedChartProps) {
   // Track visibility state for each data series
   const [visibility, setVisibility] = useState<Record<DataKey, boolean>>({
-    gas: true,
-    coal: true,
-    oil: true,
-    nuclear: true,
+    // Renewables (8)
     solar: true,
     wind: true,
     hydro: true,
+    geothermal: true,
+    biomass: true,
+    batteries: true,
+    imports: true,
     other: true,
+    // Consumables (4)
+    coal: true,
+    gas: true,
+    oil: true,
+    nuclear: true,
+    // Pricing (4)
     lmp: true,
     energy: true,
     congestion: true,
@@ -68,14 +122,21 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
   const toggleItem = (key: DataKey) => {
     // Show only the clicked item, hide everything else
     const newState: Record<DataKey, boolean> = {
-      gas: false,
-      coal: false,
-      oil: false,
-      nuclear: false,
+      // Renewables (8)
       solar: false,
       wind: false,
       hydro: false,
+      geothermal: false,
+      biomass: false,
+      batteries: false,
+      imports: false,
       other: false,
+      // Consumables (4)
+      coal: false,
+      gas: false,
+      oil: false,
+      nuclear: false,
+      // Pricing (4)
       lmp: false,
       energy: false,
       congestion: false,
@@ -95,7 +156,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
   };
   if ((!fuelMixData || fuelMixData.length === 0) && (!pricingData || pricingData.length === 0)) {
     return (
-      <div className="text-center text-gray-500 py-8">
+      <div className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
         No data available for the selected day.
       </div>
     );
@@ -124,10 +185,12 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
     });
   }
 
-  // Combine both datasets for all 24 hours
-  const combinedData = Array.from({ length: 24 }, (_, hour) => {
-    const fuelData = fuelByHour[hour];
-    const priceData = pricingByHour[hour];
+  // Combine both datasets for 25 hours (0-24, where 24 = next day's 0)
+  const combinedData = Array.from({ length: 25 }, (_, hour) => {
+    // For hour 24, use hour 0 data (showing the cycle completing)
+    const dataHour = hour === 24 ? 0 : hour;
+    const fuelData = fuelByHour[dataHour];
+    const priceData = pricingByHour[dataHour];
 
     // Helper to safely get numeric value (data is already in GW from API)
     const toNumber = (val: number | string | undefined): number => {
@@ -142,6 +205,10 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
       solar: fuelData ? toNumber(fuelData.solar) : 0,
       wind: fuelData ? toNumber(fuelData.wind) : 0,
       hydro: fuelData ? toNumber(fuelData.hydro) : 0,
+      geothermal: fuelData ? toNumber(fuelData.geothermal) : 0,
+      biomass: fuelData ? toNumber(fuelData.biomass) : 0,
+      batteries: fuelData ? toNumber(fuelData.batteries) : 0,
+      imports: fuelData ? toNumber(fuelData.imports) : 0,
       nuclear: fuelData ? toNumber(fuelData.nuclear) : 0,
       gas: fuelData ? toNumber(fuelData.gas) : 0,
       coal: fuelData ? toNumber(fuelData.coal) : 0,
@@ -155,14 +222,29 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
     };
   });
 
+  // Determine which data keys have actual content (non-zero values)
+  const hasDataForKey = (key: DataKey): boolean => {
+    return combinedData.some(point => {
+      const value = point[key];
+      return value !== null && value !== undefined && value !== 0;
+    });
+  };
+
+  // Create a Set of keys that have data for filtering tooltip
+  const keysWithData = new Set<DataKey>(
+    ['solar', 'wind', 'hydro', 'geothermal', 'biomass', 'batteries', 'imports', 'other', 
+     'coal', 'gas', 'oil', 'nuclear', 'lmp', 'energy', 'congestion', 'loss']
+      .filter(key => hasDataForKey(key as DataKey)) as DataKey[]
+  );
+
   return (
     <div className="rounded-lg" style={{ background: 'transparent' }}>
       {/* Y-axis labels above chart */}
       <div className="flex justify-between items-center mb-2">
-        <div className="text-sm font-semibold" style={{ color: '#000000' }}>
+        <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
           Price in $/MWh
         </div>
-        <div className="text-sm font-semibold" style={{ color: '#000000' }}>
+        <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
           Generation in GW
         </div>
       </div>
@@ -178,24 +260,31 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             top: 5,
             right: 0,
             left: 0,
-            bottom: 5,
+            bottom: 25,
           }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(0, 0, 0, 0.08)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border-lighter)" />
           
           <XAxis 
             dataKey="hour" 
-            stroke="#000000"
-            label={{ value: "Hour", position: "insideBottom", offset: -10, fill: "#000000", fontWeight: 500 }}
-            tick={{ fill: "#000000" }}
+            stroke="var(--text-primary)"
+            label={{ 
+              value: location ? `Hour (${getTimezoneAbbreviation(location)})` : "Hour", 
+              position: "insideBottom", 
+              offset: -10, 
+              fill: "var(--text-primary)", 
+              fontWeight: 500 
+            }}
+            tick={{ fill: "var(--text-primary)" }}
+            tickFormatter={(value) => (value % 2 === 0 && value !== 0 && value !== 24) ? value.toString() : ''}
             height={40}
           />
           
           {/* Left Y-axis for Price */}
           <YAxis 
             yAxisId="price"
-            stroke="#000000"
-            tick={{ fill: "#000000", fontWeight: 500 }}
+            stroke="var(--text-primary)"
+            tick={{ fill: "var(--text-primary)", fontWeight: 500 }}
             width={40}
           />
           
@@ -203,43 +292,17 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
           <YAxis 
             yAxisId="generation"
             orientation="right"
-            stroke="#000000"
-            tick={{ fill: "#000000", fontWeight: 500 }}
+            stroke="var(--text-primary)"
+            tick={{ fill: "var(--text-primary)", fontWeight: 500 }}
             width={40}
           />
           
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "rgba(255, 255, 255, 0.98)",
-              border: "1px solid rgba(0, 0, 0, 0.1)",
-              borderRadius: "8px",
-              boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-              fontFamily: "Inter, sans-serif"
-            }}
-            labelStyle={{ color: "#2D3436", fontWeight: 600 }}
-            labelFormatter={(hour) => `Hour ${hour}:00`}
-            formatter={(value: any, name: string) => {
-              // Format pricing components
-              if (["lmp", "energy", "congestion", "loss"].includes(name.toLowerCase())) {
-                return [`$${Number(value).toFixed(2)}/MWh`, name.toUpperCase()];
-              }
-              // Format fuel mix components
-              return [`${Number(value).toFixed(2)} GW`, name.charAt(0).toUpperCase() + name.slice(1)];
-            }}
-          />
+          <Tooltip content={<CustomTooltip keysWithData={keysWithData} />} />
           
-          {/* Stacked areas for fuel mix (right Y-axis) - ordered: fossil fuels, nuclear, renewables, other */}
-          <Area
-            yAxisId="generation"
-            type="monotone"
-            dataKey="gas"
-            stackId="1"
-            stroke={SOURCE_COLORS.gas}
-            fill={SOURCE_COLORS.gas}
-            fillOpacity={0.95}
-            name="Gas"
-            hide={!visibility.gas}
-          />
+          {/* Stacked areas for fuel mix (right Y-axis) */}
+          {/* Order: Consumables → Nuclear → Renewables → Other */}
+          
+          {/* Consumables */}
           <Area
             yAxisId="generation"
             type="monotone"
@@ -250,6 +313,17 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             fillOpacity={0.95}
             name="Coal"
             hide={!visibility.coal}
+          />
+          <Area
+            yAxisId="generation"
+            type="monotone"
+            dataKey="gas"
+            stackId="1"
+            stroke={SOURCE_COLORS.gas}
+            fill={SOURCE_COLORS.gas}
+            fillOpacity={0.95}
+            name="Gas"
+            hide={!visibility.gas}
           />
           <Area
             yAxisId="generation"
@@ -273,6 +347,8 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             name="Nuclear"
             hide={!visibility.nuclear}
           />
+          
+          {/* Renewables */}
           <Area
             yAxisId="generation"
             type="monotone"
@@ -309,6 +385,50 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
           <Area
             yAxisId="generation"
             type="monotone"
+            dataKey="geothermal"
+            stackId="1"
+            stroke={SOURCE_COLORS.geothermal}
+            fill={SOURCE_COLORS.geothermal}
+            fillOpacity={0.95}
+            name="Geothermal"
+            hide={!visibility.geothermal}
+          />
+          <Area
+            yAxisId="generation"
+            type="monotone"
+            dataKey="biomass"
+            stackId="1"
+            stroke={SOURCE_COLORS.biomass}
+            fill={SOURCE_COLORS.biomass}
+            fillOpacity={0.95}
+            name="Biomass"
+            hide={!visibility.biomass}
+          />
+          <Area
+            yAxisId="generation"
+            type="monotone"
+            dataKey="batteries"
+            stackId="1"
+            stroke={SOURCE_COLORS.batteries}
+            fill={SOURCE_COLORS.batteries}
+            fillOpacity={0.95}
+            name="Batteries"
+            hide={!visibility.batteries}
+          />
+          <Area
+            yAxisId="generation"
+            type="monotone"
+            dataKey="imports"
+            stackId="1"
+            stroke={SOURCE_COLORS.imports}
+            fill={SOURCE_COLORS.imports}
+            fillOpacity={0.95}
+            name="Imports"
+            hide={!visibility.imports}
+          />
+          <Area
+            yAxisId="generation"
+            type="monotone"
             dataKey="other"
             stackId="1"
             stroke={SOURCE_COLORS.other}
@@ -323,9 +443,9 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             yAxisId="price"
             type="monotone"
             dataKey="lmp"
-            stroke="#2D8659"
+            stroke="var(--price-lmp)"
             strokeWidth={3}
-            dot={{ fill: "#2D8659", r: 2 }}
+            dot={{ fill: "var(--price-lmp)", r: 2 }}
             name="LMP"
             connectNulls
             hide={!visibility.lmp}
@@ -334,7 +454,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             yAxisId="price"
             type="monotone"
             dataKey="energy"
-            stroke="#4CAF7D"
+            stroke="var(--price-energy)"
             strokeWidth={2}
             dot={false}
             name="Energy"
@@ -345,7 +465,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             yAxisId="price"
             type="monotone"
             dataKey="congestion"
-            stroke="#6BC99A"
+            stroke="var(--price-congestion)"
             strokeWidth={2}
             dot={false}
             name="Congestion"
@@ -356,7 +476,7 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
             yAxisId="price"
             type="monotone"
             dataKey="loss"
-            stroke="#8FD9B3"
+            stroke="var(--price-loss)"
             strokeWidth={2}
             dot={false}
             name="Loss"
@@ -370,15 +490,31 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
         {/* Custom Grouped Legend */}
         <div className="space-y-2 landscape:w-auto flex-shrink-0">
         {LEGEND_GROUPS.map((group) => {
-          const allVisible = group.items.every(item => visibility[item]);
-          const someVisible = group.items.some(item => visibility[item]);
+          // Filter items to only show those with data
+          const itemsWithData = group.items.filter(item => hasDataForKey(item));
+          
+          // Skip the entire group if no items have data
+          if (itemsWithData.length === 0) return null;
+          
+          const allVisible = itemsWithData.every(item => visibility[item]);
+          const someVisible = itemsWithData.some(item => visibility[item]);
+          
+          // Toggle function for this specific group's items with data
+          const toggleThisGroup = () => {
+            const newState = { ...visibility };
+            itemsWithData.forEach(item => {
+              newState[item] = !allVisible;
+            });
+            setVisibility(newState);
+          };
           
           return (
             <div key={group.name}>
               {/* Group Header */}
               <button
-                onClick={() => toggleGroup(group)}
-                className="text-sm font-semibold text-gray-700 hover:text-teal-600 transition-colors mb-1 flex items-center gap-2"
+                onClick={toggleThisGroup}
+                className="text-sm font-semibold transition-colors mb-1 flex items-center gap-2"
+                style={{ color: 'var(--text-primary)' }}
               >
                 <span className={allVisible ? '' : 'line-through opacity-60'}>
                   {group.name}
@@ -387,22 +523,23 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
               
               {/* Individual Items */}
               <div className="flex flex-col gap-1">
-                {group.items.map((item) => {
+                {itemsWithData.map((item) => {
                   const isVisible = visibility[item];
                   const color = item in SOURCE_COLORS 
                     ? SOURCE_COLORS[item as keyof typeof SOURCE_COLORS]
-                    : PRICING_COLORS[item];
+                    : PRICING_COLORS[item as keyof typeof PRICING_COLORS];
                   const label = item.charAt(0).toUpperCase() + item.slice(1);
                   
                   return (
                     <button
                       key={item}
                       onClick={() => toggleItem(item)}
-                      className={`flex items-center gap-2 px-3 py-1 rounded-md text-sm transition-all w-full ${
-                        isVisible 
-                          ? 'bg-white/80 hover:bg-white shadow-sm' 
-                          : 'bg-gray-100 opacity-50 hover:opacity-70'
-                      }`}
+                      className="flex items-center gap-2 px-3 py-1 rounded-md text-sm transition-all w-full"
+                      style={{
+                        backgroundColor: isVisible ? 'var(--bg-secondary)' : 'var(--border-lighter)',
+                        opacity: isVisible ? 1 : 0.5,
+                        boxShadow: isVisible ? '0 1px 2px var(--border-lighter)' : 'none',
+                      }}
                     >
                       <span
                         className="w-4 h-4 rounded"
@@ -411,7 +548,10 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
                           opacity: isVisible ? 1 : 0.3
                         }}
                       />
-                      <span className={`font-medium ${isVisible ? 'text-gray-800' : 'text-gray-500 line-through'}`}>
+                      <span
+                        className={`font-medium ${!isVisible ? 'line-through' : ''}`}
+                        style={{ color: isVisible ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+                      >
                         {label}
                       </span>
                     </button>
@@ -424,13 +564,13 @@ export default function CombinedChart({ fuelMixData, pricingData }: CombinedChar
         </div>
       </div>
       
-      <div className="text-sm text-gray-600 mt-4">
+      <div className="text-sm mt-4" style={{ color: 'var(--text-secondary)' }}>
         {hasPricingData ? (
           <p>
-            <strong className="text-gray-800">LMP</strong> = Energy + Congestion + Loss. All prices in $/MWh.
+            <strong style={{ color: 'var(--text-primary)' }}>LMP</strong> = Energy + Congestion + Loss. All prices in $/MWh.
           </p>
         ) : (
-          <p className="text-amber-700 font-medium">
+          <p style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
             Pricing data unavailable - showing generation mix only.
           </p>
         )}

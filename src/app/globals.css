@@ -5,14 +5,79 @@
 @tailwind utilities;
 
 :root {
-  --background: #FAF8F5;
-  --foreground: #2D3436;
+  /* Background Colors */
+  --bg-primary: #faf9f3;
+  --bg-secondary: #e2dedd;
+  
+  /* Text Colors */
+  --text-primary: #161516;
+  --text-secondary: #3e3e3e;
+  
+  /* Interactive Colors */
+  --active: #bce3e7;
+  
+  /* Status Colors */
+  --alert: #fb4635;
+  
+  /* UI Utilities */
+  --border-subtle: rgba(0, 0, 0, 0.1);
+  --border-lighter: rgba(0, 0, 0, 0.05);
+  --shadow-subtle: rgba(0, 0, 0, 0.1);
+  
+  /* Fuel Mix Colors (12 types: 8 renewables + 4 consumables) */
+  /* Renewables */
+  --fuel-solar: #e5efee;
+  --fuel-wind: #d4e9e6;
+  --fuel-hydro: #a3d0cf;
+  --fuel-geothermal: #71c0bf;
+  --fuel-biomass: #88b2b4;
+  --fuel-batteries: #589797;
+  --fuel-imports: #204d46;
+  --fuel-other: #082926;
+  /* Consumables */
+  --fuel-coal: #cec8c9;
+  --fuel-gas: #ada6a6;
+  --fuel-oil: #796869;
+  --fuel-nuclear: #474040;
+  
+  /* Pricing Colors */
+  --price-lmp: #d44a0e;
+  --price-energy: #e8743f;
+  --price-congestion: #e89c79;
+  --price-loss: #f3e1c0;
+  
+  /* Legacy variables for backward compatibility */
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+}
+
+/* Dark theme (can be toggled with data-theme="dark" on html/body) */
+[data-theme="dark"] {
+  --bg-primary: #0a0f1a;
+  --bg-secondary: #1a1f2e;
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  
+  /* UI Utilities - lighter borders/shadows for dark mode */
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-lighter: rgba(255, 255, 255, 0.05);
+  --shadow-subtle: rgba(0, 0, 0, 0.3);
+  
+  /* Interactive and status colors remain the same in dark mode */
+  /* Fuel mix and pricing colors remain the same in dark mode */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Input placeholder colors */
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 /* Hide calendar icon from date input */

@@ -1,24 +1,12 @@
 import { EnergySource, HistoricalRecord } from "@/types/energy";
+import { SOURCE_COLORS } from "./theme";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-// Colors sampled directly from the Caribbean sunset graphic
-export const SOURCE_COLORS: Record<EnergySource, string> = {
-  // Renewables - sampled from the water blues
-  solar: "#6DD5C3",     // Light turquoise water
-  wind: "#5DB4C8",      // Mid-tone water blue
-  hydro: "#3B7EA5",     // Deeper water blue
-  // Nuclear - sampled from palm tree silhouettes
-  nuclear: "#1B3A4B",   // Dark navy from palms
-  // Fossil fuels - darker shades from sunset for distinction
-  gas: "#FFB87A",       // Light sunset orange
-  coal: "#FF8F5C",      // Mid sunset coral
-  oil: "#E5614A",       // Deep burnt coral/red
-  // Other - sampled from coral/pink accents
-  other: "#FF9B8A",     // Coral pink
-};
+// Re-export SOURCE_COLORS from centralized theme
+export { SOURCE_COLORS };
 
 const EIA_BASE = "https://api.eia.gov/v2";
 const EIA_RTO_ENDPOINT = `${EIA_BASE}/electricity/rto/fuel-type-data/data/`;

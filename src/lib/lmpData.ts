@@ -1,4 +1,5 @@
 import { LMPDataPoint } from "@/types/energy";
+import { convertUTCToLocalHour, convertUTCToLocalDate } from "./timezone";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -61,35 +62,51 @@ interface GridStatusLMPResponse {
 
 /**
  * Aggregate sub-hourly LMP data (15-min or 5-min) to hourly by averaging
+ * Converts UTC timestamps to local time for the specified region.
  */
-function aggregateToHourly(data: LMPDataPoint[]): LMPDataPoint[] {
-  const hourlyMap = new Map<string, LMPDataPoint[]>();
+function aggregateToHourly(data: LMPDataPoint[], location: string, date: string): LMPDataPoint[] {
+  const hourlyMap = new Map<number, LMPDataPoint[]>();
 
-  // Group by hour
+  // Group by local hour
   for (const point of data) {
-    const hourKey = point.time.substring(0, 13); // "2024-03-01T05"
-    if (!hourlyMap.has(hourKey)) {
-      hourlyMap.set(hourKey, []);
+    const localDate = convertUTCToLocalDate(point.time, location);
+    
+    // Only process points that match the requested local date
+    if (localDate !== date) {
+      continue;
     }
-    hourlyMap.get(hourKey)!.push(point);
+    
+    const localHour = convertUTCToLocalHour(point.time, location);
+    
+    if (!hourlyMap.has(localHour)) {
+      hourlyMap.set(localHour, []);
+    }
+    hourlyMap.get(localHour)!.push(point);
   }
 
   // Average each hour's data
   const hourlyData: LMPDataPoint[] = [];
-  for (const [hourKey, points] of hourlyMap) {
-    const count = points.length;
-    const avgLMP = points.reduce((sum, p) => sum + p.lmp, 0) / count;
-    const avgEnergy = points.reduce((sum, p) => sum + p.energy, 0) / count;
-    const avgCongestion = points.reduce((sum, p) => sum + p.congestion, 0) / count;
-    const avgLoss = points.reduce((sum, p) => sum + p.loss, 0) / count;
+  for (let hour = 0; hour < 24; hour++) {
+    const points = hourlyMap.get(hour);
+    
+    if (points && points.length > 0) {
+      const count = points.length;
+      const avgLMP = points.reduce((sum, p) => sum + p.lmp, 0) / count;
+      const avgEnergy = points.reduce((sum, p) => sum + p.energy, 0) / count;
+      const avgCongestion = points.reduce((sum, p) => sum + p.congestion, 0) / count;
+      const avgLoss = points.reduce((sum, p) => sum + p.loss, 0) / count;
 
-    hourlyData.push({
-      time: `${hourKey}:00:00+00:00`,
-      lmp: Number(avgLMP.toFixed(2)),
-      energy: Number(avgEnergy.toFixed(2)),
-      congestion: Number(avgCongestion.toFixed(2)),
-      loss: Number(avgLoss.toFixed(2)),
-    });
+      // Create timestamp in local time format
+      const timeStr = `${date}T${String(hour).padStart(2, '0')}:00:00`;
+      
+      hourlyData.push({
+        time: timeStr,
+        lmp: Number(avgLMP.toFixed(2)),
+        energy: Number(avgEnergy.toFixed(2)),
+        congestion: Number(avgCongestion.toFixed(2)),
+        loss: Number(avgLoss.toFixed(2)),
+      });
+    }
   }
 
   return hourlyData.sort((a, b) => a.time.localeCompare(b.time));
@@ -149,9 +166,12 @@ export async function fetchLMPHourly(
   }
   lastRequestTime = Date.now();
 
-  // Parse date and construct time range (00:00 to 23:59 UTC)
-  const startTime = `${date}T00:00:00Z`;
-  const endTime = `${date}T23:59:59Z`;
+  // Query an efficient time range to capture the full local day
+  // US timezones range from UTC-5 to UTC-8, so we need at most a 12-hour buffer
+  // Query from 12 hours before local midnight to 12 hours after
+  const localDate = new Date(date + 'T00:00:00');
+  const startTime = new Date(localDate.getTime() - 12 * 60 * 60 * 1000).toISOString();
+  const endTime = new Date(localDate.getTime() + 36 * 60 * 60 * 1000).toISOString();
 
   // Use server-side filtering by location for efficiency
   const locationFilter = `&filter_column=location&filter_value=${encodeURIComponent(node)}`;
@@ -215,13 +235,18 @@ export async function fetchLMPHourly(
   }
 
   // Map to our LMP format
-  const lmpData: LMPDataPoint[] = filteredData.map((d) => ({
+  const lmpDataUTC: LMPDataPoint[] = filteredData.map((d) => ({
     time: d.interval_start_utc,
     lmp: d.lmp,
     energy: d.energy,
     congestion: d.congestion,
     loss: d.loss,
   }));
+
+  // Convert to local time and aggregate to hourly if needed
+  const lmpData = needsResampling 
+    ? aggregateToHourly(lmpDataUTC, iso, date)
+    : aggregateToHourly(lmpDataUTC, iso, date); // Always aggregate to convert to local time
 
   // Sort by time
   lmpData.sort((a, b) => a.time.localeCompare(b.time));

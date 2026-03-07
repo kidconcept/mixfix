@@ -268,10 +268,10 @@ export default function Home() {
         {/* Date and Address Fields - Inline Edit Style */}
         <div className="mb-8 flex flex-wrap gap-6 items-center">
           {/* Brand */}
-          <div className="font-bold text-2xl text-gray-900">mixfix</div>
+          <div className="font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>mixfix</div>
           
           {/* Date Field */}
-          <div className="relative inline-flex items-center border border-transparent rounded-lg px-3" style={{ borderColor: isDateEditing ? '#5db4c8' : 'transparent', height: '38px' }}>
+          <div className="relative inline-flex items-center border border-transparent rounded-lg px-3" style={{ borderColor: isDateEditing ? 'var(--active)' : 'transparent', height: '38px' }}>
             {isDateEditing ? (
               <>
                 <input
@@ -283,13 +283,14 @@ export default function Home() {
                       handleDateSubmit();
                     }
                   }}
-                  className="text-gray-800 font-medium focus:outline-none bg-transparent"
-                  style={{ height: '26px' }}
+                  className="font-medium focus:outline-none bg-transparent"
+                  style={{ color: 'var(--text-primary)', height: '26px' }}
                   autoFocus
                 />
                 <button
                   onClick={handleDateSubmit}
-                  className="text-gray-500 hover:text-teal-600 transition-colors flex-shrink-0 ml-2"
+                  className="transition-colors flex-shrink-0 ml-2"
+                  style={{ color: 'var(--text-secondary)' }}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -298,12 +299,13 @@ export default function Home() {
               </>
             ) : (
               <>
-                <span className="text-gray-800 font-medium" style={{ lineHeight: '26px' }}>
+                <span className="font-medium" style={{ color: 'var(--text-primary)', lineHeight: '26px' }}>
                   {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                 </span>
                 <button
                   onClick={() => setIsDateEditing(true)}
-                  className="text-gray-500 hover:text-teal-600 transition-colors flex-shrink-0 ml-2"
+                  className="transition-colors flex-shrink-0 ml-2"
+                  style={{ color: 'var(--text-secondary)' }}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -315,7 +317,7 @@ export default function Home() {
 
           {/* Address Field */}
           <div className="flex-1 min-w-[300px] relative">
-            <div className="relative inline-flex items-center w-full border border-transparent rounded-lg px-3" style={{ borderColor: isAddressEditing ? '#5db4c8' : 'transparent', height: '38px' }}>
+            <div className="relative inline-flex items-center w-full border border-transparent rounded-lg px-3" style={{ borderColor: isAddressEditing ? 'var(--active)' : 'transparent', height: '38px' }}>
               {isAddressEditing ? (
                 <>
                   <input
@@ -328,14 +330,15 @@ export default function Home() {
                       }
                     }}
                     placeholder="City, County, State"
-                    className="text-gray-800 font-medium focus:outline-none bg-transparent flex-1 placeholder-gray-400"
-                    style={{ height: '26px' }}
+                    className="font-medium focus:outline-none bg-transparent flex-1"
+                    style={{ color: 'var(--text-primary)', height: '26px' }}
                     autoFocus
                   />
                   <button
                     onClick={handleAddressSubmit}
                     disabled={isLocating}
-                    className="text-gray-500 hover:text-teal-600 transition-colors disabled:opacity-50 flex-shrink-0 ml-2"
+                    className="transition-colors disabled:opacity-50 flex-shrink-0 ml-2"
+                    style={{ color: 'var(--text-secondary)' }}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -345,15 +348,16 @@ export default function Home() {
               ) : (
                 <>
                   <span 
-                    className={`font-medium cursor-pointer ${address ? 'text-gray-800' : 'text-gray-400'}`}
+                    className="font-medium cursor-pointer"
                     onClick={() => setIsAddressEditing(true)}
-                    style={{ lineHeight: '26px' }}
+                    style={{ color: address ? 'var(--text-primary)' : 'var(--text-secondary)', lineHeight: '26px' }}
                   >
                     {address || 'City, County, State'}
                   </span>
                   <button
                     onClick={() => setIsAddressEditing(true)}
-                    className="text-gray-500 hover:text-teal-600 transition-colors flex-shrink-0 ml-2"
+                    className="transition-colors flex-shrink-0 ml-2"
+                    style={{ color: 'var(--text-secondary)' }}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -363,7 +367,7 @@ export default function Home() {
               )}
             </div>
             {geocodeMessage && (
-              <p className="absolute left-0 top-full mt-1 text-xs text-gray-600 whitespace-nowrap">{geocodeMessage}</p>
+              <p className="absolute left-0 top-full mt-1 text-xs whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>{geocodeMessage}</p>
             )}
           </div>
         </div>
@@ -373,7 +377,8 @@ export default function Home() {
           <div className="flex-1 min-w-[200px]">
             <label
               htmlFor="location"
-              className="block text-sm font-semibold text-gray-700 mb-2"
+              className="block text-sm font-semibold mb-2"
+              style={{ color: 'var(--text-primary)' }}
             >
               Operating Region (ISO/RTO BA):
             </label>
@@ -383,13 +388,21 @@ export default function Home() {
               value={location}
               onChange={(e) => setLocation(e.target.value.toUpperCase())}
               placeholder="e.g., NYISO, CAISO, PJM"
-              className="bg-white border border-gray-300 rounded-lg px-4 py-2.5 w-full focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-gray-800 placeholder-gray-400"
+              className="rounded-lg px-4 py-2.5 w-full focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ 
+                backgroundColor: 'var(--bg-secondary)', 
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: 'var(--text-secondary)',
+                color: 'var(--text-primary)'
+              }}
             />
           </div>
           <div className="flex-1 min-w-[200px]">
             <label
               htmlFor="node"
-              className="block text-sm font-semibold text-gray-700 mb-2"
+              className="block text-sm font-semibold mb-2"
+              style={{ color: 'var(--text-primary)' }}
             >
               Node:
             </label>
@@ -399,7 +412,14 @@ export default function Home() {
               value={node}
               onChange={(e) => setNode(e.target.value.toUpperCase())}
               placeholder="e.g., CAPITL, CENTRL"
-              className="bg-white border border-gray-300 rounded-lg px-4 py-2.5 w-full focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent text-gray-800 placeholder-gray-400"
+              className="rounded-lg px-4 py-2.5 w-full focus:outline-none focus:ring-2 focus:border-transparent"
+              style={{ 
+                backgroundColor: 'var(--bg-secondary)', 
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                borderColor: 'var(--text-secondary)',
+                color: 'var(--text-primary)'
+              }}
             />
           </div>
         </div>
@@ -408,48 +428,48 @@ export default function Home() {
         <div className="mt-8">
           {/* Loading state only when we have NO data at all */}
           {!hasAnyData && pricingLoading && (
-            <div className="text-center p-8 text-gray-600 font-medium">
+            <div className="text-center p-8 font-medium" style={{ color: 'var(--text-secondary)' }}>
               ⏳ Loading Pricing Data...
-              <div className="text-sm mt-2 text-gray-500">Fetching from Grid Status API{pricingRetryCount > 0 && ` (Retry ${pricingRetryCount}/3)`}...</div>
-              {fuelMixLoading && <div className="text-sm mt-2 text-gray-400">Also loading fuel mix data...</div>}
+              <div className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Fetching from Grid Status API{pricingRetryCount > 0 && ` (Retry ${pricingRetryCount}/3)`}...</div>
+              {fuelMixLoading && <div className="text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>Also loading fuel mix data...</div>}
             </div>
           )}
           
           {/* Show critical error if pricing (primary data) fails */}
           {!pricingData && pricingError && (
-            <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 mb-4 shadow-sm">
-              <p className="text-red-800 font-semibold">
+            <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
+              <p className="font-semibold" style={{ color: 'var(--alert)' }}>
                 {pricingError.message?.includes("Rate limit") ? "⏱️ Rate Limit Reached" : "❌ Pricing Data Failed"}
               </p>
-              <p className="text-sm text-red-700 mt-1">
+              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
                 {pricingError.message || "Unknown error"}
                 {pricingError.message?.includes("timeout") && " (API timeout - Grid Status may be slow)"}
                 {pricingError.message?.includes("Rate limit") && " Automatic retry in progress with extended delays."}
                 {pricingRetryCount > 0 && ` - Attempted ${pricingRetryCount} retries`}
               </p>
-              <p className="text-sm text-red-600 mt-2 font-medium">Cannot display chart without pricing data.</p>
+              <p className="text-sm mt-2 font-medium" style={{ color: 'var(--alert)' }}>Cannot display chart without pricing data.</p>
             </div>
           )}
           
           {/* Show fuel mix status as secondary/enhancement data */}
           {hasPricingData && !hasFuelMixData && fuelMixLoading && (
-            <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-4 shadow-sm">
-              <p className="text-blue-800 font-semibold">⏳ Loading Fuel Mix Data...</p>
-              <p className="text-sm text-blue-700 mt-1">
+            <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
+              <p className="font-semibold" style={{ color: 'var(--alert)' }}>⏳ Loading Fuel Mix Data...</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
                 Fetching fuel generation mix{fuelMixRetryCount > 0 && ` (Retry ${fuelMixRetryCount}/3)`}...
               </p>
-              <p className="text-sm text-blue-600 mt-1">Pricing data loaded. Chart showing pricing only.</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>Pricing data loaded. Chart showing pricing only.</p>
             </div>
           )}
           
           {hasPricingData && !hasFuelMixData && fuelMixError && (
-            <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4 mb-4 shadow-sm">
-              <p className="text-amber-800 font-semibold">ℹ️ Fuel Mix Data Unavailable</p>
-              <p className="text-sm text-amber-700 mt-1">
+            <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
+              <p className="font-semibold" style={{ color: 'var(--alert)' }}>ℹ️ Fuel Mix Data Unavailable</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
                 {fuelMixError.message || "Unknown error"}
                 {fuelMixRetryCount > 0 && ` (Attempted ${fuelMixRetryCount} retries)`}
               </p>
-              <p className="text-sm text-amber-600 mt-1">Showing pricing data only - fuel mix enhancement unavailable.</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>Showing pricing data only - fuel mix enhancement unavailable.</p>
             </div>
           )}
           
@@ -459,10 +479,11 @@ export default function Home() {
               <CombinedChart 
                 fuelMixData={fuelMixData?.hourly || []} 
                 pricingData={pricingData?.lmp || []}
+                location={location}
               />
               {(fuelMixData?.meta || pricingData?.meta) && (
-                <div className="text-sm text-gray-600 mt-6 text-center bg-white/60 rounded-lg py-3">
-                  Data source:{" "}
+                <div className="text-sm text-left" style={{ color: 'var(--text-secondary)' }}>
+                  <strong style={{ color: 'var(--text-primary)' }}>Data source:</strong>{" "}
                   <a
                     href={
                       (fuelMixData?.meta?.source === "grid-status" || pricingData?.meta?.source === "grid-status")
@@ -471,7 +492,8 @@ export default function Home() {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-teal-600 hover:text-teal-700 underline"
+                    className="font-semibold underline"
+                    style={{ color: 'var(--active)' }}
                   >
                     {(fuelMixData?.meta?.source === "grid-status" || pricingData?.meta?.source === "grid-status")
                       ? "Grid Status"

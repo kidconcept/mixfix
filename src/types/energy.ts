@@ -1,14 +1,20 @@
 // Types for energy generation data
 
 export type EnergySource =
+  // Renewables (8)
   | "solar"
   | "wind"
   | "hydro"
-  | "nuclear"
-  | "gas"
+  | "geothermal"
+  | "biomass"
+  | "batteries"
+  | "imports"
+  | "other"
+  // Consumables (4)
   | "coal"
+  | "gas"
   | "oil"
-  | "other";
+  | "nuclear";
 
 export interface GenerationDataPoint {
   source: EnergySource;
