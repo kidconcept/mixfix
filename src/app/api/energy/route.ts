@@ -131,7 +131,10 @@ export async function GET(request: Request) {
     }
 
     // Fetch fuel mix data from EIA
+    const apiStartTime = Date.now();
+    console.log(`[API Route] Starting EIA fuel mix fetch...`);
     const result = await fetchEIAFuelMix(location, date);
+    console.log(`[API Route] EIA fetch completed in ${Date.now() - apiStartTime}ms`);
 
     // Handle fetch errors
     if (!result.success) {

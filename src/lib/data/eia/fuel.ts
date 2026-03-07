@@ -88,8 +88,12 @@ export async function fetchEIAFuelMix(
   const url = `${EIA_RTO_ENDPOINT}?${params}`;
 
   // Execute request through queue with timeout and retry
+  const startTime = Date.now();
+  console.log(`[EIA] Starting fetch for ${location} on ${date}...`);
+  
   const result = await eiaQueue.request(
     async () => {
+      const fetchStartTime = Date.now();
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -99,6 +103,8 @@ export async function fetchEIAFuelMix(
       }
       
       const json: EIAResponse = await response.json();
+      const fetchEndTime = Date.now();
+      console.log(`[EIA] Fetch completed in ${fetchEndTime - fetchStartTime}ms`);
       return json.response?.data ?? [];
     },
     {
@@ -115,6 +121,9 @@ export async function fetchEIAFuelMix(
 
   // Transform EIA rows to hourly records
   const records = transformEIAData(result.data, date);
+  
+  const totalTime = Date.now() - startTime;
+  console.log(`[EIA] Total request time (including queue/retry): ${totalTime}ms, returned ${records.length} hourly records`);
 
   return {
     success: true,
