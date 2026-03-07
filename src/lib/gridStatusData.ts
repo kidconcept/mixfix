@@ -8,20 +8,32 @@ import { convertUTCToLocalHour, convertUTCToLocalDate } from "./timezone";
 const GRID_STATUS_BASE = "https://api.gridstatus.io/v1";
 
 // Mapping ISO names to Grid Status dataset IDs
+// Using hourly datasets where available to reduce data volume by 12x (24 vs 288 data points/day)
 const ISO_DATASET_MAP: Record<string, string> = {
-  NYISO: "nyiso_fuel_mix",
-  NYIS: "nyiso_fuel_mix",
-  CAISO: "caiso_fuel_mix",
+  // Hourly datasets (preferred - no pagination needed for single day)
+  NYISO: "nyiso_fuel_mix_hourly",
+  NYIS: "nyiso_fuel_mix_hourly",
+  ISONE: "isone_fuel_mix_hourly",
+  ISNE: "isone_fuel_mix_hourly",
+  PJM: "pjm_fuel_mix_hourly",
+  MISO: "miso_fuel_mix_hourly",
+  
+  // 5-minute datasets (fallback for ISOs without hourly - requires aggregation)
+  CAISO: "caiso_fuel_mix", // No hourly available, 5-min intervals
   CISO: "caiso_fuel_mix",
-  ERCOT: "ercot_fuel_mix",
+  ERCOT: "ercot_fuel_mix", // No hourly available, 5-min intervals
   ERCO: "ercot_fuel_mix",
-  ISONE: "isone_fuel_mix",
-  ISNE: "isone_fuel_mix",
-  MISO: "miso_fuel_mix",
-  PJM: "pjm_fuel_mix",
-  SPP: "spp_fuel_mix",
+  SPP: "spp_fuel_mix", // No hourly available, 5-min intervals
   SWPP: "spp_fuel_mix",
 };
+
+// Track which ISOs use hourly vs sub-hourly data
+const HOURLY_DATASETS = new Set([
+  "nyiso_fuel_mix_hourly",
+  "isone_fuel_mix_hourly",
+  "pjm_fuel_mix_hourly",
+  "miso_fuel_mix_hourly",
+]);
 
 // ---------------------------------------------------------------------------
 // Grid Status API Types
@@ -167,13 +179,16 @@ async function gridStatusFetch(
 }
 
 /**
- * Aggregate 5-minute data points to hourly by taking the point closest to the top of each hour.
+ * Aggregate sub-hourly data points to hourly.
+ * For hourly data: maps directly (no aggregation needed)
+ * For 5-minute data: takes the point closest to the top of each hour
  * Converts UTC timestamps to local time for the specified region.
  */
 function aggregateToHourly(
   dataPoints: GridStatusDataPoint[],
   date: string,
-  location: string
+  location: string,
+  isHourlyData: boolean
 ): HistoricalRecord[] {
   const hourlyData: { [hour: number]: GridStatusDataPoint } = {};
 
@@ -187,12 +202,18 @@ function aggregateToHourly(
     }
     
     const localHour = convertUTCToLocalHour(utcTimestamp, location);
-    const timestamp = new Date(utcTimestamp);
-    const minute = timestamp.getUTCMinutes();
 
-    // Take the data point closest to the top of the hour (00 or 05 minutes)
-    if (!hourlyData[localHour] || minute <= 5) {
+    if (isHourlyData) {
+      // For hourly data, directly map each point (no minute check needed)
       hourlyData[localHour] = point;
+    } else {
+      // For sub-hourly data (5-min), take the point closest to the top of the hour
+      const timestamp = new Date(utcTimestamp);
+      const minute = timestamp.getUTCMinutes();
+      
+      if (!hourlyData[localHour] || minute <= 5) {
+        hourlyData[localHour] = point;
+      }
     }
   }
 
@@ -262,13 +283,23 @@ export async function fetchGridStatusHourly(
   const startTime = new Date(localDate.getTime() - 12 * 60 * 60 * 1000).toISOString();
   const endTime = new Date(localDate.getTime() + 36 * 60 * 60 * 1000).toISOString();
 
+  const isHourlyData = HOURLY_DATASETS.has(dataset);
+  
+  if (isHourlyData) {
+    console.log(`Using hourly dataset for ${location} - expecting ~24 data points`);
+  } else {
+    console.log(`Using sub-hourly dataset for ${location} - will aggregate ~288 data points`);
+  }
+
   const response = await gridStatusFetch(dataset, startTime, endTime, apiKey);
 
   if (!response.data || response.data.length === 0) {
     throw new Error(`No data returned from Grid Status for ${location} on ${date}`);
   }
 
-  return aggregateToHourly(response.data, date, location);
+  console.log(`Received ${response.data.length} data points from Grid Status (hourly: ${isHourlyData})`);
+
+  return aggregateToHourly(response.data, date, location, isHourlyData);
 }
 
 /**

@@ -1,30 +1,46 @@
 import { NextResponse } from "next/server";
-import { fetchEIAHourly } from "@/lib/energyData";
-import { fetchGridStatusHourly, isGridStatusSupported } from "@/lib/gridStatusData";
-import { fetchLMPHourly, isLMPSupported } from "@/lib/lmpData";
+import { fetchEIAFuelMix, getMockEIAFuelMix } from "@/lib/data/eia/fuel";
+import { 
+  fetchGridStatusPricing, 
+  isPricingSupported,
+  getMockPricingData 
+} from "@/lib/data/gridStatus/pricing";
+import { 
+  validateFuelMixData, 
+  validatePricingData,
+  generateQualitySummary,
+  type DataQualityReport 
+} from "@/lib/data/validation/validator";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const location = searchParams.get("location");
   const date = searchParams.get("date");
-  const source = searchParams.get("source"); // Optional: 'grid-status' or 'eia'
   const view = searchParams.get("view"); // Optional: 'fuel-mix' (default) or 'pricing'
   const node = searchParams.get("node"); // Required for pricing view
 
+  // Validate required parameters
   if (!date) {
-    return NextResponse.json({ error: "Date parameter is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Date parameter is required" }, 
+      { status: 400 }
+    );
+  }
+
+  // Validate date format (YYYY-MM-DD)
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  if (!datePattern.test(date)) {
+    return NextResponse.json(
+      { error: "Invalid date format. Expected YYYY-MM-DD" },
+      { status: 400 }
+    );
   }
 
   try {
-    // Handle pricing view
+    // =========================================================================
+    // PRICING VIEW: Grid Status only
+    // =========================================================================
     if (view === "pricing") {
-      if (!node) {
-        return NextResponse.json(
-          { error: "Node parameter is required for pricing view" },
-          { status: 400 }
-        );
-      }
-
       if (!location) {
         return NextResponse.json(
           { error: "Location parameter is required for pricing view" },
@@ -32,64 +48,141 @@ export async function GET(request: Request) {
         );
       }
 
-      if (!isLMPSupported(location)) {
+      if (!node) {
         return NextResponse.json(
-          { error: `LMP data not available for ${location}` },
+          { error: "Node parameter is required for pricing view" },
           { status: 400 }
         );
       }
 
-      const lmpData = await fetchLMPHourly(location, node, date);
+      // Check if pricing is supported for this ISO
+      if (!isPricingSupported(location)) {
+        return NextResponse.json(
+          { error: `Pricing data not available for ${location}` },
+          { status: 400 }
+        );
+      }
+
+      // Fetch pricing data
+      const result = await fetchGridStatusPricing(location, node, date);
+
+      // Handle fetch errors
+      if (!result.success) {
+        console.error("Pricing fetch error:", result.error);
+        
+        // For development, return mock data on API errors
+        if (process.env.NODE_ENV === 'development') {
+          const mockData = getMockPricingData(date);
+          const quality = validatePricingData(mockData, date);
+          
+          return NextResponse.json({
+            lmp: mockData,
+            quality: {
+              ...quality,
+              warnings: [...quality.warnings, "Using mock data (API error)"],
+            },
+            meta: {
+              source: "mock",
+              view: "pricing",
+              location,
+              node,
+              date,
+              error: result.error.message,
+            },
+          });
+        }
+        
+        return NextResponse.json(
+          { 
+            error: "Failed to fetch pricing data", 
+            details: result.error.message,
+            type: result.error.type,
+          },
+          { status: 500 }
+        );
+      }
+
+      // Validate data quality
+      const quality = validatePricingData(result.data, date);
+
       return NextResponse.json({
-        lmp: lmpData,
+        lmp: result.data,
+        quality,
         meta: {
           source: "grid-status",
           view: "pricing",
           location,
           node,
           date,
+          summary: generateQualitySummary(quality),
         },
       });
     }
 
-    // Handle fuel mix view (default)
-    let hourly;
-    let dataSource;
-
-    // If source is explicitly specified, use that
-    if (source === "eia") {
-      hourly = await fetchEIAHourly(location, date);
-      dataSource = "eia";
-    } else if (source === "grid-status") {
-      hourly = await fetchGridStatusHourly(location, date);
-      dataSource = "grid-status";
-    } else {
-      // Auto-select: try Grid Status first if supported, fall back to EIA
-      if (isGridStatusSupported(location)) {
-        try {
-          hourly = await fetchGridStatusHourly(location, date);
-          dataSource = "grid-status";
-        } catch (gridError) {
-          console.warn("Grid Status failed, falling back to EIA:", gridError);
-          hourly = await fetchEIAHourly(location, date);
-          dataSource = "eia";
-        }
-      } else {
-        // Grid Status not supported for this location, use EIA
-        hourly = await fetchEIAHourly(location, date);
-        dataSource = "eia";
-      }
+    // =========================================================================
+    // FUEL MIX VIEW: EIA only (Architecture V2 decision)
+    // =========================================================================
+    
+    if (!location) {
+      return NextResponse.json(
+        { error: "Location parameter is required for fuel mix view" },
+        { status: 400 }
+      );
     }
 
-    return NextResponse.json({ 
-      hourly,
-      meta: {
-        source: dataSource,
-        view: "fuel-mix",
-        location: location || "all",
-        date,
+    // Fetch fuel mix data from EIA
+    const result = await fetchEIAFuelMix(location, date);
+
+    // Handle fetch errors
+    if (!result.success) {
+      console.error("EIA fuel mix fetch error:", result.error);
+      
+      // For development, return mock data on API errors
+      if (process.env.NODE_ENV === 'development') {
+        const mockData = getMockEIAFuelMix(date);
+        const quality = validateFuelMixData(mockData, date);
+        
+        return NextResponse.json({
+          hourly: mockData,
+          quality: {
+            ...quality,
+            warnings: [...quality.warnings, "Using mock data (API error)"],
+          },
+          meta: {
+            source: "mock",
+            view: "fuel-mix",
+            location,
+            date,
+            error: result.error.message,
+          },
+        });
       }
+
+      return NextResponse.json(
+        { 
+          error: "Failed to fetch fuel mix data", 
+          details: result.error.message,
+          type: result.error.type,
+        },
+        { status: 500 }
+      );
+    }
+
+    // Validate data quality
+    const quality = validateFuelMixData(result.data, date);
+
+    return NextResponse.json({
+      hourly: result.data,
+      quality,
+      meta: {
+        source: "eia",
+        view: "fuel-mix",
+        location,
+        date,
+        summary: generateQualitySummary(quality),
+      },
     });
+
   } catch (err) {
     const error = err as Error;
     console.error("API route error:", error.message);

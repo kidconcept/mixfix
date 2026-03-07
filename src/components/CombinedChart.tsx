@@ -185,12 +185,10 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
     });
   }
 
-  // Combine both datasets for 25 hours (0-24, where 24 = next day's 0)
+  // Combine both datasets for 25 hours (0-24, where 24 = next day's hour 0)
   const combinedData = Array.from({ length: 25 }, (_, hour) => {
-    // For hour 24, use hour 0 data (showing the cycle completing)
-    const dataHour = hour === 24 ? 0 : hour;
-    const fuelData = fuelByHour[dataHour];
-    const priceData = pricingByHour[dataHour];
+    const fuelData = fuelByHour[hour];
+    const priceData = pricingByHour[hour];
 
     // Helper to safely get numeric value (data is already in GW from API)
     const toNumber = (val: number | string | undefined): number => {
@@ -240,10 +238,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
   return (
     <div className="rounded-lg" style={{ background: 'transparent' }}>
       {/* Y-axis labels above chart */}
-      <div className="flex justify-between items-center mb-2">
-        <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Price in $/MWh
-        </div>
+      <div className="flex justify-end items-center mb-2">
         <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
           Generation in GW
         </div>
@@ -564,17 +559,6 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
         </div>
       </div>
       
-      <div className="text-sm mt-4" style={{ color: 'var(--text-secondary)' }}>
-        {hasPricingData ? (
-          <p>
-            <strong style={{ color: 'var(--text-primary)' }}>LMP</strong> = Energy + Congestion + Loss. All prices in $/MWh.
-          </p>
-        ) : (
-          <p style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
-            Pricing data unavailable - showing generation mix only.
-          </p>
-        )}
-      </div>
     </div>
   );
 }

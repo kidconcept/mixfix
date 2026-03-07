@@ -82,10 +82,43 @@ textarea::placeholder {
 
 /* Hide calendar icon from date input */
 input[type="date"]::-webkit-calendar-picker-indicator {
-  display: none;
+  display: none !important;
+  -webkit-appearance: none;
 }
 
 input[type="date"]::-webkit-inner-spin-button,
 input[type="date"]::-webkit-clear-button {
-  display: none;
+  display: none !important;
+  -webkit-appearance: none;
+}
+
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+/* Firefox-specific date input calendar icon */
+input[type="date"]::-moz-calendar-picker-indicator {
+  display: none !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+/* Remove all date input UI chrome */
+input[type="date"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background: none;
+  background-image: none !important;
+}
+
+/* Additional Firefox-specific hiding using clip-path */
+@supports (-moz-appearance: none) {
+  input[type="date"]::-moz-calendar-picker-indicator {
+    clip-path: inset(100%);
+  }
 }

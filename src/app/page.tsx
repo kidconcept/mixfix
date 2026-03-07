@@ -1,7 +1,7 @@
 "use client";
 
 import CombinedChart from "@/components/CombinedChart";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
 
@@ -48,10 +48,13 @@ export default function Home() {
   const [geocodeMessage, setGeocodeMessage] = useState<string>("");
   const [fuelMixKey, setFuelMixKey] = useState<string | null>(null);
   const [pricingKey, setPricingKey] = useState<string | null>(null);
-  const [isDateEditing, setIsDateEditing] = useState(false);
-  const [isAddressEditing, setIsAddressEditing] = useState(false);
+  const [dateFocused, setDateFocused] = useState(false);
+  const [addressFocused, setAddressFocused] = useState(false);
   const [fuelMixRetryCount, setFuelMixRetryCount] = useState(0);
   const [pricingRetryCount, setPricingRetryCount] = useState(0);
+  
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const addressInputRef = useRef<HTMLInputElement>(null);
 
   const handleLocate = async () => {
     setIsLocating(true);
@@ -105,21 +108,20 @@ export default function Home() {
     setPricingRetryCount(0);
   };
 
-  const handleDateSubmit = () => {
-    setIsDateEditing(false);
+  const handleDateChange = () => {
     setFuelMixRetryCount(0);
     setPricingRetryCount(0);
     handleUpdate();
   };
 
-  const handleAddressSubmit = async () => {
+  const handleAddressChange = async () => {
+    if (!address.trim()) return;
     setIsLocating(true);
     await handleLocate();
     setFuelMixRetryCount(0);
     setPricingRetryCount(0);
     handleUpdate();
     setIsLocating(false);
-    setIsAddressEditing(false);
   };
 
   // Load data on initial mount
@@ -266,109 +268,120 @@ export default function Home() {
     <SWRConfig value={swrConfig}>
       <main className="min-h-screen p-6 md:p-10">
         {/* Date and Address Fields - Inline Edit Style */}
-        <div className="mb-8 flex flex-wrap gap-6 items-center">
+        <div className="mb-4 flex flex-wrap gap-6 items-center">
           {/* Brand */}
           <div className="font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>mixfix</div>
           
           {/* Date Field */}
-          <div className="relative inline-flex items-center border border-transparent rounded-lg px-3" style={{ borderColor: isDateEditing ? 'var(--active)' : 'transparent', height: '38px' }}>
-            {isDateEditing ? (
-              <>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      handleDateSubmit();
-                    }
-                  }}
-                  className="font-medium focus:outline-none bg-transparent"
-                  style={{ color: 'var(--text-primary)', height: '26px' }}
-                  autoFocus
-                />
-                <button
-                  onClick={handleDateSubmit}
-                  className="transition-colors flex-shrink-0 ml-2"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </>
-            ) : (
-              <>
-                <span className="font-medium" style={{ color: 'var(--text-primary)', lineHeight: '26px' }}>
-                  {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </span>
-                <button
-                  onClick={() => setIsDateEditing(true)}
-                  className="transition-colors flex-shrink-0 ml-2"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
-              </>
+          <div className="flex items-center gap-0">
+            <button
+              onClick={() => {
+                dateInputRef.current?.focus();
+                dateInputRef.current?.showPicker?.();
+              }}
+              className="transition-colors flex-shrink-0"
+              style={{ color: 'var(--text-secondary)' }}
+              tabIndex={-1}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+            <div className="relative inline-flex items-center border rounded-lg px-3 transition-all" style={{ borderColor: dateFocused ? 'var(--active)' : 'transparent', height: '38px' }}>
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={date}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={(e) => setDate(e.target.value)}
+                onFocus={(e) => {
+                  setDateFocused(true);
+                  e.target.select();
+                  e.target.showPicker?.();
+                }}
+                onBlur={() => {
+                  setDateFocused(false);
+                  handleDateChange();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                className="font-medium focus:outline-none bg-transparent"
+                style={{ color: 'var(--text-primary)', height: '26px', fieldSizing: 'content' }}
+              />
+            </div>
+            {dateFocused && (
+              <button
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  dateInputRef.current?.blur();
+                }}
+                className="transition-colors flex-shrink-0"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
             )}
           </div>
 
           {/* Address Field */}
-          <div className="flex-1 min-w-[300px] relative">
-            <div className="relative inline-flex items-center w-full border border-transparent rounded-lg px-3" style={{ borderColor: isAddressEditing ? 'var(--active)' : 'transparent', height: '38px' }}>
-              {isAddressEditing ? (
-                <>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleAddressSubmit();
-                      }
-                    }}
-                    placeholder="City, County, State"
-                    className="font-medium focus:outline-none bg-transparent flex-1"
-                    style={{ color: 'var(--text-primary)', height: '26px' }}
-                    autoFocus
-                  />
-                  <button
-                    onClick={handleAddressSubmit}
-                    disabled={isLocating}
-                    className="transition-colors disabled:opacity-50 flex-shrink-0 ml-2"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <span 
-                    className="font-medium cursor-pointer"
-                    onClick={() => setIsAddressEditing(true)}
-                    style={{ color: address ? 'var(--text-primary)' : 'var(--text-secondary)', lineHeight: '26px' }}
-                  >
-                    {address || 'City, County, State'}
-                  </span>
-                  <button
-                    onClick={() => setIsAddressEditing(true)}
-                    className="transition-colors flex-shrink-0 ml-2"
-                    style={{ color: 'var(--text-secondary)' }}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                </>
+          <div className="relative">
+            <div className="flex items-center gap-0">
+              <button
+                onClick={() => addressInputRef.current?.focus()}
+                className="transition-colors flex-shrink-0"
+                style={{ color: 'var(--text-secondary)' }}
+                tabIndex={-1}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+              <div className="relative inline-flex items-center border rounded-lg px-3 transition-all" style={{ borderColor: addressFocused ? 'var(--active)' : 'transparent', height: '38px' }}>
+                <input
+                  ref={addressInputRef}
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  onFocus={(e) => {
+                    setAddressFocused(true);
+                    e.target.select();
+                  }}
+                  onBlur={() => {
+                    setAddressFocused(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleAddressChange();
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  placeholder="City, County, State"
+                  className="font-medium focus:outline-none bg-transparent"
+                  style={{ color: 'var(--text-primary)', height: '26px', fieldSizing: 'content' }}
+                />
+              </div>
+              {addressFocused && (
+                <button
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleAddressChange();
+                    addressInputRef.current?.blur();
+                  }}
+                  disabled={isLocating}
+                  className="transition-colors disabled:opacity-50 flex-shrink-0"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </button>
               )}
             </div>
-            {geocodeMessage && (
-              <p className="absolute left-0 top-full mt-1 text-xs whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>{geocodeMessage}</p>
-            )}
           </div>
         </div>
 
@@ -482,27 +495,51 @@ export default function Home() {
                 location={location}
               />
               {(fuelMixData?.meta || pricingData?.meta) && (
-                <div className="text-sm text-left" style={{ color: 'var(--text-secondary)' }}>
-                  <strong style={{ color: 'var(--text-primary)' }}>Data source:</strong>{" "}
-                  <a
-                    href={
-                      (fuelMixData?.meta?.source === "grid-status" || pricingData?.meta?.source === "grid-status")
-                        ? "https://www.gridstatus.io"
-                        : "https://www.eia.gov"
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold underline"
-                    style={{ color: 'var(--active)' }}
-                  >
-                    {(fuelMixData?.meta?.source === "grid-status" || pricingData?.meta?.source === "grid-status")
-                      ? "Grid Status"
-                      : "EIA"}
-                  </a>
-                  {" • "}
-                  {fuelMixData?.meta?.location || pricingData?.meta?.location}
-                  {pricingData?.meta?.node && ` • ${pricingData.meta.node}`} •{" "}
-                  {fuelMixData?.meta?.date || pricingData?.meta?.date}
+                <div className="text-sm text-left space-y-1" style={{ color: 'var(--text-secondary)' }}>
+                  <div className="font-semibold" style={{ color: 'var(--text-primary)' }}>Data Sources:</div>
+                  
+                  {/* EIA API - Fuel Mix */}
+                  {fuelMixData?.meta && (
+                    <div className="flex flex-wrap items-center gap-x-2">
+                      <a
+                        href="https://www.eia.gov/opendata/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold underline"
+                        style={{ color: 'var(--active)' }}
+                      >
+                        EIA API v2
+                      </a>
+                      <span>→</span>
+                      <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                        {fuelMixData.meta.location}
+                      </span>
+                      <span>→</span>
+                      <span>Hourly fuel mix generation data</span>
+                    </div>
+                  )}
+                  
+                  {/* Grid Status API - Pricing */}
+                  {pricingData?.meta && (
+                    <div className="flex flex-wrap items-center gap-x-2">
+                      <a
+                        href="https://www.gridstatus.io"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold underline"
+                        style={{ color: 'var(--active)' }}
+                      >
+                        Grid Status API
+                      </a>
+                      <span>→</span>
+                      <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                        {pricingData.meta.location}
+                        {pricingData.meta.node && ` / ${pricingData.meta.node}`}
+                      </span>
+                      <span>→</span>
+                      <span>Locational Marginal Price (LMP = Energy + Congestion + Loss.)</span>
+                    </div>
+                  )}
                 </div>
               )}
             </>
