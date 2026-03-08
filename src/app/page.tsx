@@ -4,6 +4,7 @@ import CombinedChart from "@/components/CombinedChart";
 import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
+import { getAllBAs, getZones, hasPricingData, getRepresentativeZone } from "@/lib/config/balancing-authorities";
 
 // Fetcher with timeout for client-side requests
 const fetcher = async (url: string) => {
@@ -40,9 +41,14 @@ function getYesterday(): string {
 }
 
 export default function Home() {
+  // Load all available balancing authorities from config
+  const allBAs = getAllBAs();
+  
   const [location, setLocation] = useState<string>("NYISO");
   const [date, setDate] = useState(getYesterday());
-  const [node, setNode] = useState<string>("CAPITL");
+  const [zone, setZone] = useState<string>("CAPITL");
+  const [showBADropdown, setShowBADropdown] = useState(false);
+  const [baSearchTerm, setBaSearchTerm] = useState("");
   const [address, setAddress] = useState<string>("");
   const [isLocating, setIsLocating] = useState(false);
   const [geocodeMessage, setGeocodeMessage] = useState<string>("");
@@ -75,11 +81,11 @@ export default function Home() {
 
       if (data.iso) {
         setLocation(data.iso);
-        // Always update node from geocode result
+        // Always update zone from geocode result
         if (data.suggestedNode) {
-          setNode(data.suggestedNode);
+          setZone(data.suggestedNode);
         } else if (data.zone) {
-          setNode(data.zone);
+          setZone(data.zone);
         }
         setGeocodeMessage(
           `Found: ${data.display_name} → ${data.iso}${data.zone ? ` (${data.zone})` : ""}`
@@ -101,10 +107,14 @@ export default function Home() {
     setFuelMixKey(
       `/api/energy?date=${date}${location ? `&location=${location}` : ""}`
     );
-    // Fetch pricing data
-    setPricingKey(
-      `/api/energy?date=${date}&location=${location}&view=pricing&node=${node}`
-    );
+    // Fetch pricing data (only if BA has pricing support)
+    if (hasPricingData(location)) {
+      setPricingKey(
+        `/api/energy?date=${date}&location=${location}&view=pricing&node=${zone}`
+      );
+    } else {
+      setPricingKey(null);
+    }
     // Reset retry counts when manually updating
     setFuelMixRetryCount(0);
     setPricingRetryCount(0);
@@ -159,11 +169,11 @@ export default function Home() {
                 
                 if (geocodeData.iso) {
                   setLocation(geocodeData.iso);
-                  // Update node from geocode result
+                  // Update zone from geocode result
                   if (geocodeData.suggestedNode) {
-                    setNode(geocodeData.suggestedNode);
+                    setZone(geocodeData.suggestedNode);
                   } else if (geocodeData.zone) {
-                    setNode(geocodeData.zone);
+                    setZone(geocodeData.zone);
                   }
                   setGeocodeMessage(
                     `Auto-detected: ${geocodeData.display_name} → ${geocodeData.iso}${geocodeData.zone ? ` (${geocodeData.zone})` : ""}`
@@ -237,14 +247,16 @@ export default function Home() {
         console.log(`Retrying pricing data (attempt ${pricingRetryCount + 1}/3 after ${delay}ms, rate limited: ${isRateLimited})...`);
         setPricingRetryCount(prev => prev + 1);
         // Force refetch by updating the key
-        setPricingKey(
-          `/api/energy?date=${date}&location=${location}&view=pricing&node=${node}&retry=${pricingRetryCount + 1}`
-        );
+        if (hasPricingData(location)) {
+          setPricingKey(
+            `/api/energy?date=${date}&location=${location}&view=pricing&node=${zone}&retry=${pricingRetryCount + 1}`
+          );
+        }
       }, delay);
 
       return () => clearTimeout(retryTimer);
     }
-  }, [pricingError, pricingData, pricingRetryCount, date, location, node]);
+  }, [pricingError, pricingData, pricingRetryCount, date, location, zone]);
 
   // Reset retry counts when data successfully loads
   useEffect(() => {
@@ -261,10 +273,13 @@ export default function Home() {
     }
   }, [pricingData, pricingRetryCount]);
 
-  // Pricing is now the primary data source, fuel mix is secondary/enhancement
-  const hasPricingData = !!pricingData;
+  // Check if current BA supports pricing
+  const supportsPricing = hasPricingData(location);
+  
+  // Data availability
+  const hasPricingDataLoaded = !!pricingData;
   const hasFuelMixData = !!fuelMixData;
-  const hasAnyData = hasPricingData; // Chart requires pricing data as primary
+  const hasAnyData = supportsPricing ? hasPricingDataLoaded : hasFuelMixData; // Chart requires pricing for ISOs, fuel mix for others
 
   return (
     <SWRConfig value={swrConfig}>
@@ -397,9 +412,9 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ISO/Node Form Controls */}
+        {/* ISO/Zone Form Controls */}
         <div className="flex flex-wrap gap-3 items-end mb-6">
-          <div className="flex-1 min-w-[200px]">
+          <div className="flex-1 min-w-[200px] relative">
             <label
               htmlFor="location"
               className="block text-sm font-semibold mb-2"
@@ -407,37 +422,87 @@ export default function Home() {
             >
               Balancing Authority:
             </label>
-            <input
-              id="location"
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value.toUpperCase())}
-              placeholder="e.g., NYISO, CAISO, PJM"
-              className="rounded-lg px-4 py-2.5 w-full focus:outline-none focus:ring-2 focus:border-transparent"
-              style={{ 
-                backgroundColor: 'var(--bg-secondary)', 
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                borderColor: 'var(--text-secondary)',
-                color: 'var(--text-primary)'
-              }}
-            />
+            <div className="relative">
+              <input
+                id="location"
+                type="text"
+                value={baSearchTerm || location}
+                onChange={(e) => {
+                  setBaSearchTerm(e.target.value);
+                  setShowBADropdown(true);
+                }}
+                onFocus={() => setShowBADropdown(true)}
+                onBlur={() => setTimeout(() => setShowBADropdown(false), 200)}
+                placeholder="Search or select BA..."
+                className="rounded-lg px-4 py-2.5 w-full focus:outline-none focus:ring-2 focus:border-transparent"
+                style={{ 
+                  backgroundColor: 'var(--bg-secondary)', 
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--text-secondary)',
+                  color: 'var(--text-primary)'
+                }}
+              />
+              {showBADropdown && (
+                <div 
+                  className="absolute z-10 w-full mt-1 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                  style={{ 
+                    backgroundColor: 'var(--bg-secondary)',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderColor: 'var(--text-secondary)'
+                  }}
+                >
+                  {allBAs
+                    .filter(ba => 
+                      !baSearchTerm || 
+                      ba.code.toLowerCase().includes(baSearchTerm.toLowerCase()) ||
+                      ba.name.toLowerCase().includes(baSearchTerm.toLowerCase())
+                    )
+                    .map(ba => (
+                      <button
+                        key={ba.code}
+                        onClick={() => {
+                          setLocation(ba.code);
+                          setBaSearchTerm("");
+                          setShowBADropdown(false);
+                          // Set default zone if BA has pricing
+                          if (ba.hasPricing && ba.representativeZone) {
+                            setZone(ba.representativeZone);
+                          }
+                        }}
+                        className="w-full text-left px-4 py-2 hover:bg-opacity-80 transition-colors"
+                        style={{ 
+                          backgroundColor: location === ba.code ? 'var(--active)' : 'transparent',
+                          color: 'var(--text-primary)'
+                        }}
+                      >
+                        <div className="font-semibold">{ba.code}</div>
+                        <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                          {ba.name} {ba.hasPricing && '• Pricing Available'}
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex-1 min-w-[200px]">
             <label
-              htmlFor="node"
+              htmlFor="zone"
               className="block text-sm font-semibold mb-2"
               style={{ color: 'var(--text-primary)' }}
             >
-              Node:
+              Zone {!supportsPricing && <span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>(Pricing not available)</span>}:
             </label>
             <input
-              id="node"
+              id="zone"
               type="text"
-              value={node}
-              onChange={(e) => setNode(e.target.value.toUpperCase())}
-              placeholder="e.g., CAPITL, CENTRL"
-              className="rounded-lg px-4 py-2.5 w-full focus:outline-none focus:ring-2 focus:border-transparent"
+              value={zone}
+              onChange={(e) => setZone(e.target.value.toUpperCase())}
+              placeholder={supportsPricing ? "e.g., CAPITL, CENTRL" : "N/A"}
+              disabled={!supportsPricing}
+              className="rounded-lg px-4 py-2.5 w-full focus:outline-none focus:ring-2 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ 
                 backgroundColor: 'var(--bg-secondary)', 
                 borderWidth: '1px',
@@ -451,17 +516,28 @@ export default function Home() {
 
         {/* Data Display */}
         <div className="mt-8">
-          {/* Loading state only when we have NO data at all */}
-          {!hasAnyData && pricingLoading && (
-            <div className="border-2 rounded-lg px-4 py-3.5 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--message)' }}>
-              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
-                ⏳ Loading Pricing Data{pricingRetryCount > 0 && ` (Retry ${pricingRetryCount}/3)`}{fuelMixLoading && ' and Fuel Mix Data'}...
+          {/* Info message for non-ISO BAs */}
+          {!supportsPricing && (
+            <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--message)' }}>
+              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>ℹ️ Fuel Mix Only</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+                Pricing data is only available for the 7 ISOs with wholesale markets (NYISO, CAISO, PJM, MISO, ERCOT, ISONE, SPP). 
+                Showing fuel mix generation data for {location}.
               </p>
             </div>
           )}
           
-          {/* Show critical error if pricing (primary data) fails */}
-          {!pricingData && pricingError && (
+          {/* Loading state */}
+          {!hasAnyData && (supportsPricing ? pricingLoading : fuelMixLoading) && (
+            <div className="border-2 rounded-lg px-4 py-3.5 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--message)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                ⏳ Loading {supportsPricing ? 'Pricing' : 'Fuel Mix'} Data{(supportsPricing ? pricingRetryCount : fuelMixRetryCount) > 0 && ` (Retry ${supportsPricing ? pricingRetryCount : fuelMixRetryCount}/3)`}{supportsPricing && fuelMixLoading && ' and Fuel Mix Data'}...
+              </p>
+            </div>
+          )}
+          
+          {/* Show critical error if pricing (for ISOs) fails */}
+          {supportsPricing && !pricingData && pricingError && (
             <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
               <p className="font-semibold" style={{ color: 'var(--alert)' }}>
                 {pricingError.message?.includes("Rate limit") ? "⏱️ Rate Limit Reached" : "❌ Pricing Data Failed"}
@@ -476,8 +552,8 @@ export default function Home() {
             </div>
           )}
           
-          {/* Show fuel mix status as secondary/enhancement data */}
-          {hasPricingData && !hasFuelMixData && fuelMixLoading && (
+          {/* Show fuel mix status as secondary/enhancement data for ISOs */}
+          {supportsPricing && hasPricingDataLoaded && !hasFuelMixData && fuelMixLoading && (
             <div className="border-2 rounded-lg px-4 py-3.5 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--message)' }}>
               <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
                 ⏳ Loading Fuel Mix Data{fuelMixRetryCount > 0 && ` (Retry ${fuelMixRetryCount}/3)`}...
@@ -485,7 +561,7 @@ export default function Home() {
             </div>
           )}
           
-          {hasPricingData && !hasFuelMixData && fuelMixError && (
+          {supportsPricing && hasPricingDataLoaded && !hasFuelMixData && fuelMixError && (
             <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
               <p className="font-semibold" style={{ color: 'var(--alert)' }}>ℹ️ Fuel Mix Data Unavailable</p>
               <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
@@ -493,6 +569,17 @@ export default function Home() {
                 {fuelMixRetryCount > 0 && ` (Attempted ${fuelMixRetryCount} retries)`}
               </p>
               <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>Showing pricing data only - fuel mix enhancement unavailable.</p>
+            </div>
+          )}
+          
+          {/* Show error for non-ISO BAs if fuel mix fails */}
+          {!supportsPricing && !fuelMixData && fuelMixError && (
+            <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
+              <p className="font-semibold" style={{ color: 'var(--alert)' }}>❌ Fuel Mix Data Failed</p>
+              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
+                {fuelMixError.message || "Unknown error"}
+                {fuelMixRetryCount > 0 && ` (Attempted ${fuelMixRetryCount} retries)`}
+              </p>
             </div>
           )}
           
@@ -544,10 +631,10 @@ export default function Home() {
                       <span>→</span>
                       <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
                         {pricingData.meta.location}
-                        {pricingData.meta.node && ` / ${pricingData.meta.node}`}
+                        {pricingData.meta.node && ` / Zone: ${pricingData.meta.node}`}
                       </span>
                       <span>→</span>
-                      <span>Locational Marginal Price (LMP = Energy + Congestion + Loss.)</span>
+                      <span>Locational Marginal Price (LMP = Energy + Congestion + Loss)</span>
                     </div>
                   )}
                 </div>
