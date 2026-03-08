@@ -594,7 +594,7 @@ export default function Home() {
                   backgroundColor: 'var(--background)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
-                  borderColor: 'var(--interactive-secondary)',
+                  borderColor: 'var(--active)',
                   minWidth: '300px',
                   maxHeight: '240px'
                 }}
