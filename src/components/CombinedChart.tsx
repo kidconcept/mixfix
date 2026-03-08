@@ -625,7 +625,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             stackId="charging"
             stroke="var(--fuel-charging)"
             fill="var(--fuel-charging)"
-            fillOpacity={0.95}
+            fillOpacity={0.56}
             name="Charging"
             hide={!visibility.charging}
           />
