@@ -69,8 +69,6 @@ export default function Home() {
   const [address, setAddress] = useState<string>("");
   const [isLocating, setIsLocating] = useState(false);
   const [geocodeMessage, setGeocodeMessage] = useState<string>("");
-  const [fuelMixKey, setFuelMixKey] = useState<string | null>(null);
-  const [pricingKey, setPricingKey] = useState<string | null>(null);
   const [dateFocused, setDateFocused] = useState(false);
   const [dateHovered, setDateHovered] = useState(false);
   const [addressFocused, setAddressFocused] = useState(false);
@@ -84,6 +82,15 @@ export default function Home() {
   const [useMockPricing, setUseMockPricing] = useState(false);
   const [mockPricingData, setMockPricingData] = useState<LMPDataPoint[] | null>(null);
   const [gridStatusQuotaExceeded, setGridStatusQuotaExceeded] = useState(false);
+  
+  // Derive SWR keys reactively from state - ensures chart always syncs with BA/Zone fields
+  const fuelMixKey = location 
+    ? `/api/energy?date=${date}&location=${location}${fuelMixRetryCount > 0 ? `&retry=${fuelMixRetryCount}` : ""}`
+    : null;
+
+  const pricingKey = (location && zone && hasPricingData(location))
+    ? `/api/energy?date=${date}&location=${location}&view=pricing&node=${zone}${pricingRetryCount > 0 ? `&retry=${pricingRetryCount}` : ""}`
+    : null;
   
   const dateInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
@@ -145,6 +152,9 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
+        // Reset BA/Zone when geocoding fails (e.g., address not found).
+        setLocation("");
+        setZone("");
         setGeocodeMessage(data.error || "Failed to geocode address");
         return;
       }
@@ -161,39 +171,25 @@ export default function Home() {
           `Found: ${data.display_name} → ${data.iso}${data.zone ? ` (${data.zone})` : ""}`
         );
         console.log("Geocode result:", { iso: data.iso, zone: data.zone, suggestedNode: data.suggestedNode });
-      } else if (data.message && data.message !== "No address provided") {
-        setGeocodeMessage(data.message);
+      } else {
+        // No BA/Zone found - reset fields and show error in Location field
+        setAddress("BA/Zone not found");
+        setLocation("");
+        setZone("");
+        if (data.message && data.message !== "No address provided") {
+          setGeocodeMessage(data.message);
+        } else {
+          setGeocodeMessage("Location not found or not within a balancing authority");
+        }
       }
     } catch (error) {
+      setLocation("");
+      setZone("");
       setGeocodeMessage("Error locating address");
       console.error("Geocode error:", error);
     } finally {
       setIsLocating(false);
     }
-  };
-
-  const handleUpdate = () => {
-    // Fetch fuel mix data
-    setFuelMixKey(
-      `/api/energy?date=${date}${location ? `&location=${location}` : ""}`
-    );
-    // Fetch pricing data (only if BA has pricing support)
-    if (hasPricingData(location)) {
-      setPricingKey(
-        `/api/energy?date=${date}&location=${location}&view=pricing&node=${zone}`
-      );
-    } else {
-      setPricingKey(null);
-    }
-    // Reset retry counts when manually updating
-    setFuelMixRetryCount(0);
-    setPricingRetryCount(0);
-  };
-
-  const handleDateChange = () => {
-    setFuelMixRetryCount(0);
-    setPricingRetryCount(0);
-    handleUpdate();
   };
 
   const handleAddressChange = async () => {
@@ -202,13 +198,11 @@ export default function Home() {
     await handleLocate();
     setFuelMixRetryCount(0);
     setPricingRetryCount(0);
-    handleUpdate();
     setIsLocating(false);
   };
 
   // Load data on initial mount
   useEffect(() => {
-    handleUpdate();
     // Auto-populate address based on browser location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -248,8 +242,6 @@ export default function Home() {
                   setGeocodeMessage(
                     `Auto-detected: ${geocodeData.display_name} → ${geocodeData.iso}${geocodeData.zone ? ` (${geocodeData.zone})` : ""}`
                   );
-                  // Refresh data with new location/node
-                  setTimeout(() => handleUpdate(), 100);
                 }
               } catch (error) {
                 console.error("Error auto-populating ISO/Node:", error);
@@ -306,10 +298,6 @@ export default function Home() {
       const retryTimer = setTimeout(() => {
         console.log(`Retrying fuel mix data (attempt ${fuelMixRetryCount + 1}/3 after ${delay}ms)...`);
         setFuelMixRetryCount(prev => prev + 1);
-        // Force refetch by updating the key
-        setFuelMixKey(
-          `/api/energy?date=${date}${location ? `&location=${location}` : ""}&retry=${fuelMixRetryCount + 1}`
-        );
       }, delay);
 
       return () => clearTimeout(retryTimer);
@@ -336,12 +324,6 @@ export default function Home() {
       const retryTimer = setTimeout(() => {
         console.log(`Retrying pricing data (attempt ${pricingRetryCount + 1}/3 after ${delay}ms)...`);
         setPricingRetryCount(prev => prev + 1);
-        // Force refetch by updating the key
-        if (hasPricingData(location)) {
-          setPricingKey(
-            `/api/energy?date=${date}&location=${location}&view=pricing&node=${zone}&retry=${pricingRetryCount + 1}`
-          );
-        }
       }, delay);
 
       return () => clearTimeout(retryTimer);
@@ -408,7 +390,8 @@ export default function Home() {
                 }}
                 onBlur={() => {
                   setDateFocused(false);
-                  handleDateChange();
+                  setFuelMixRetryCount(0);
+                  setPricingRetryCount(0);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -455,6 +438,29 @@ export default function Home() {
                   className="font-medium focus:outline-none bg-transparent"
                   style={{ color: 'var(--text-primary)', height: '26px', fieldSizing: 'content' }}
                 />
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    // Keep focus stable through click so the button doesn't disable itself before onClick fires.
+                    e.preventDefault();
+                  }}
+                  onClick={() => {
+                    handleAddressChange();
+                    addressInputRef.current?.blur();
+                  }}
+                  className="ml-2 hover:opacity-70 transition-opacity"
+                  style={{ 
+                    color: 'var(--interactive-primary)', 
+                    fontSize: '18px',
+                    opacity: (addressFocused && address) ? 1 : 0,
+                    pointerEvents: (addressFocused && address) ? 'auto' : 'none',
+                    visibility: (addressFocused && address) ? 'visible' : 'hidden'
+                  }}
+                  title="Geocode location"
+                  tabIndex={-1}
+                >
+                  →
+                </button>
               </div>
             </div>
             </div>
@@ -494,7 +500,8 @@ export default function Home() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.currentTarget.blur();
-                        handleUpdate();
+                        setFuelMixRetryCount(0);
+                        setPricingRetryCount(0);
                       }
                     }}
                     placeholder="Select BA"
@@ -532,7 +539,8 @@ export default function Home() {
                         if (ba.hasPricing && ba.representativeZone) {
                           setZone(ba.representativeZone);
                         }
-                        setTimeout(() => handleUpdate(), 100);
+                        setFuelMixRetryCount(0);
+                        setPricingRetryCount(0);
                       }}
                       className="w-full text-left px-4 py-2 hover:bg-opacity-80 transition-colors"
                       style={{ 
@@ -591,7 +599,8 @@ export default function Home() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.currentTarget.blur();
-                        handleUpdate();
+                        setFuelMixRetryCount(0);
+                        setPricingRetryCount(0);
                       }
                     }}
                     placeholder={supportsPricing ? "Select Zone" : "N/A"}
@@ -625,7 +634,8 @@ export default function Home() {
                         setZone(z);
                         setZoneSearchTerm("");
                         setShowZoneDropdown(false);
-                        setTimeout(() => handleUpdate(), 100);
+                        setFuelMixRetryCount(0);
+                        setPricingRetryCount(0);
                       }}
                       className="w-full text-left px-4 py-2 hover:bg-opacity-80 transition-colors"
                       style={{ 
@@ -644,117 +654,101 @@ export default function Home() {
 
         {/* Data Display */}
         <div className="mt-8">
+          {/* Geocoding status */}
+          {geocodeMessage && (
+            <Message
+              type={geocodeMessage.startsWith("Found:") || geocodeMessage.startsWith("Auto-detected:") ? "info" : "error"}
+              className="mb-4"
+            >
+              {geocodeMessage}
+            </Message>
+          )}
+
           {/* Info message for non-ISO BAs */}
           {!supportsPricing && location && (
-            <Message type="info">
-              Pricing data only available for ISOs (NYISO, CAISO, PJM, MISO, ERCOT, ISONE, SPP) — showing fuel mix for {location}
+            <Message type="info" className="mb-4">
+              Pricing unavailable for {location}; showing fuel mix only.
             </Message>
           )}
           
           {/* Show message if no BA selected */}
           {!location && (
-            <Message type="info">
-              Search for a Balancing Authority (BA) and zone to see fuel mix and pricing data.
+            <Message type="info" className="mb-4">
+              Select a BA and zone to load data.
             </Message>
           )}
           
           {/* Loading state */}
           {!hasAnyData && (supportsPricing ? pricingLoading : fuelMixLoading) && (
-            <div className="border-2 rounded-lg px-4 py-3.5 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--message)' }}>
-              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
-                ⏳ Loading {supportsPricing ? 'Pricing' : 'Fuel Mix'} Data{(supportsPricing ? pricingRetryCount : fuelMixRetryCount) > 0 && ` (Retry ${supportsPricing ? pricingRetryCount : fuelMixRetryCount}/3)`}{supportsPricing && fuelMixLoading && ' and Fuel Mix Data'}...
-              </p>
-            </div>
+            <Message type="loading" className="mb-4">
+              Loading {supportsPricing ? "pricing" : "fuel mix"}
+              {(supportsPricing ? pricingRetryCount : fuelMixRetryCount) > 0 && ` (Retry ${supportsPricing ? pricingRetryCount : fuelMixRetryCount}/3)`}
+              {supportsPricing && fuelMixLoading && " and fuel mix"}
+              ...
+            </Message>
           )}
           
           {/* Show pricing error for ISOs, but only block chart if no fuel mix data available */}
           {supportsPricing && !pricingData && pricingError && !hasFuelMixData && (
-            <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
-              <p className="font-semibold" style={{ color: 'var(--alert)' }}>
-                {pricingError.message?.includes("quota exceeded") || pricingError.message?.includes("limit reached") 
-                  ? "🚫 Grid Status API Quota Exceeded" 
-                  : pricingError.message?.includes("Rate limit") 
-                    ? "⏱️ Rate Limit Reached" 
-                    : "❌ Pricing Data Failed"}
-              </p>
-              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
-                {pricingError.message || "Unknown error"}
-                {pricingError.message?.includes("timeout") && " (API timeout - Grid Status may be slow)"}
-                {(pricingError.message?.includes("quota exceeded") || pricingError.message?.includes("limit reached")) && 
-                  " Please upgrade your Grid Status API plan or wait for quota reset."}
-                {pricingError.message?.includes("Rate limit") && !pricingError.message?.includes("quota") && 
-                  " Automatic retry in progress with extended delays."}
-                {pricingRetryCount > 0 && !pricingError.message?.includes("quota") && ` - Attempted ${pricingRetryCount} retries`}
-              </p>
-              <p className="text-sm mt-2 font-medium" style={{ color: 'var(--alert)' }}>Cannot display chart without data.</p>
-            </div>
+            <Message type="error" className="mb-4">
+              {(pricingError.message?.includes("quota exceeded") || pricingError.message?.includes("limit reached"))
+                ? "Grid Status quota exceeded. Chart unavailable."
+                : pricingError.message?.includes("Rate limit")
+                  ? `Pricing rate limited${pricingRetryCount > 0 ? ` after ${pricingRetryCount} retries` : ""}. Chart unavailable.`
+                  : `Pricing failed: ${pricingError.message || "Unknown error"}. Chart unavailable.`}
+            </Message>
           )}
           
           {/* Show pricing error as simple text if fuel mix is available */}
           {supportsPricing && !pricingData && (pricingError || gridStatusQuotaExceeded) && hasFuelMixData && !useMockPricing && (
-            <div className="mb-4">
-              <p className="text-sm" style={{ color: 'var(--alert)' }}>
+            <Message type="error" className="mb-4">
                 {(pricingError?.message?.includes("quota exceeded") || pricingError?.message?.includes("limit reached") || gridStatusQuotaExceeded) 
                   ? (
                     <>
-                      Sorry, pricing data is unavailable due to Grid Status API quota limits.{" "}
+                      Pricing unavailable due to quota limits.{" "}
                       <button
                         onClick={handleEnableMockPricing}
                         className="underline font-semibold hover:opacity-80 transition-opacity"
                         style={{ color: 'var(--interactive-primary)' }}
                       >
-                        Do you want to see mock pricing data?
+                        Show mock pricing
                       </button>
                     </>
                   )
                   : pricingError?.message?.includes("Rate limit") 
-                    ? "Sorry, pricing data is temporarily unavailable due to rate limiting." 
-                    : "Sorry, pricing data is currently unavailable."}
-              </p>
-            </div>
+                    ? "Pricing temporarily unavailable (rate limit)."
+                    : "Pricing unavailable."}
+            </Message>
           )}
           
           {/* Show message when displaying mock pricing data */}
           {supportsPricing && useMockPricing && hasFuelMixData && (
-            <div className="mb-4">
-              <p className="text-sm font-medium" style={{ color: 'var(--alert)' }}>
-                Showing mock pricing data.
-              </p>
-            </div>
+            <Message type="info" className="mb-4">
+              Showing mock pricing.
+            </Message>
           )}
           
           {/* Show fuel mix status as secondary/enhancement data for ISOs */}
           {supportsPricing && hasPricingDataLoaded && !hasFuelMixData && fuelMixLoading && (
-            <div className="border-2 rounded-lg px-4 py-3.5 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--message)' }}>
-              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
-                ⏳ Loading Fuel Mix Data{fuelMixRetryCount > 0 && ` (Retry ${fuelMixRetryCount}/3)`}...
-              </p>
-            </div>
+            <Message type="loading" className="mb-4">
+              Loading fuel mix{fuelMixRetryCount > 0 && ` (Retry ${fuelMixRetryCount}/3)`}...
+            </Message>
           )}
           
           {supportsPricing && hasPricingDataLoaded && !hasFuelMixData && fuelMixError && (
-            <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
-              <p className="font-semibold" style={{ color: 'var(--alert)' }}>
-                {fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit") 
-                  ? "🚫 EIA API Rate Limit Exceeded" 
-                  : "ℹ️ Fuel Mix Data Unavailable"}
-              </p>
-              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
-                {fuelMixError.message || "Unknown error"}
-                {(fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit")) && 
-                  " Please wait for the rate limit to reset or use a different API key."}
-                {fuelMixRetryCount > 0 && !fuelMixError.message?.includes("rate") && ` (Attempted ${fuelMixRetryCount} retries)`}
-              </p>
-              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>Showing pricing data only - fuel mix enhancement unavailable.</p>
-            </div>
+            <Message type="error" className="mb-4">
+              {(fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit"))
+                ? "EIA rate limited. Showing pricing only."
+                : `Fuel mix unavailable: ${fuelMixError.message || "Unknown error"}. Showing pricing only.`}
+            </Message>
           )}
           
           {/* Show error for non-ISO BAs if fuel mix fails */}
           {!supportsPricing && location && !fuelMixData && fuelMixError && (
-            <Message type="error">
+            <Message type="error" className="mb-4">
               {fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit") 
-                ? "EIA API rate limit exceeded — please wait and try again"
-                : `Fuel mix data failed: ${fuelMixError.message || "Unknown error"}`}
+                ? "EIA rate limited. Try again soon."
+                : `Fuel mix failed: ${fuelMixError.message || "Unknown error"}`}
             </Message>
           )}
           
