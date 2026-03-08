@@ -72,9 +72,18 @@ export async function fetchEIAFuelMix(
   const params = buildParams(apiKey, location, date);
   const url = `${EIA_RTO_ENDPOINT}?${params}`;
 
+  // Log BA code mapping for verification
+  const upperLoc = location.toUpperCase();
+  const eiaCode = getEIACode(upperLoc);
+  const facetType = eiaCode ? 'respondent' : (upperLoc.length === 2 ? 'stateid' : 'unknown');
+  const facetValue = eiaCode || (upperLoc.length === 2 ? upperLoc : 'N/A');
+  
+  console.log(`[EIA] Starting fetch for ${location} on ${date}`);
+  console.log(`[EIA] BA Mapping: ${location} → ${facetType}=${facetValue}`);
+  console.log(`[EIA] Request URL: ${url}`);
+
   // Execute request through queue with timeout and retry
   const startTime = Date.now();
-  console.log(`[EIA] Starting fetch for ${location} on ${date}...`);
   
   const result = await eiaQueue.request(
     async () => {
@@ -99,8 +108,9 @@ export async function fetchEIAFuelMix(
       
       const json: EIAResponse = await response.json();
       const fetchEndTime = Date.now();
-      console.log(`[EIA] Fetch completed in ${fetchEndTime - fetchStartTime}ms`);
-      return json.response?.data ?? [];
+      const rawRows = json.response?.data ?? [];
+      console.log(`[EIA] Fetch completed in ${fetchEndTime - fetchStartTime}ms, received ${rawRows.length} raw rows`);
+      return rawRows;
     },
     {
       timeout: 30000,      // 30 second timeout
@@ -115,10 +125,16 @@ export async function fetchEIAFuelMix(
   }
 
   // Transform EIA rows to hourly records
+  const rawRowCount = result.data.length;
   const records = transformEIAData(result.data, date);
   
   const totalTime = Date.now() - startTime;
-  console.log(`[EIA] Total request time (including queue/retry): ${totalTime}ms, returned ${records.length} hourly records`);
+  console.log(`[EIA] Total request time (including queue/retry): ${totalTime}ms`);
+  console.log(`[EIA] Data transformation: ${rawRowCount} raw rows → ${records.length} hourly records`);
+  
+  if (rawRowCount === 0) {
+    console.warn(`[EIA] WARNING: No data returned from EIA API for ${location} on ${date}`);
+  }
 
   return {
     success: true,

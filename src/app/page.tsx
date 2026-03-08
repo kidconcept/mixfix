@@ -13,7 +13,15 @@ const fetcher = async (url: string) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 65000); // 65 second timeout (slightly more than server timeout)
   
+  // Enable debug logging with ?debug=true query param
+  const isDebug = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
+  
+  if (isDebug) {
+    console.log(`[Frontend Fetch] Request: ${url}`);
+  }
+  
   try {
+    const fetchStart = Date.now();
     const response = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
     
@@ -22,7 +30,56 @@ const fetcher = async (url: string) => {
       throw new Error(errorData.error || `HTTP ${response.status}`);
     }
     
-    return response.json();
+    const data = await response.json();
+    const fetchTime = Date.now() - fetchStart;
+    
+    if (isDebug) {
+      console.log(`[Frontend Fetch] Response received in ${fetchTime}ms`);
+      
+      // Log metadata
+      if (data.meta) {
+        console.log(`[Frontend Fetch] Metadata:`, {
+          dataSource: data.meta.dataSource,
+          source: data.meta.source,
+          location: data.meta.location,
+          date: data.meta.date,
+          recordCount: data.meta.recordCount,
+          timestamp: data.meta.timestamp,
+          quality: data.quality?.confidence
+        });
+      }
+      
+      // Log data fingerprint for consistency checking
+      if (data.hourly && data.hourly.length > 0) {
+        const first = data.hourly[0];
+        const last = data.hourly[data.hourly.length - 1];
+        const totalGeneration = data.hourly.reduce((sum: number, record: any) => {
+          const recordTotal = Object.entries(record)
+            .filter(([key]) => key !== 'date')
+            .reduce((acc, [, val]) => acc + (typeof val === 'number' ? val : 0), 0);
+          return sum + recordTotal;
+        }, 0);
+        
+        console.log(`[Frontend Fetch] Data fingerprint:`, {
+          records: data.hourly.length,
+          firstHour: first.date,
+          lastHour: last.date,
+          totalGeneration: Math.round(totalGeneration * 100) / 100,
+          firstHourSample: { date: first.date, coal: first.coal, gas: first.gas, nuclear: first.nuclear }
+        });
+      }
+      
+      if (data.lmp && data.lmp.length > 0) {
+        const avgPrice = data.lmp.reduce((sum: number, point: any) => sum + point.lmp, 0) / data.lmp.length;
+        console.log(`[Frontend Fetch] Pricing fingerprint:`, {
+          points: data.lmp.length,
+          avgPrice: Math.round(avgPrice * 100) / 100,
+          range: [Math.min(...data.lmp.map((p: any) => p.lmp)), Math.max(...data.lmp.map((p: any) => p.lmp))]
+        });
+      }
+    }
+    
+    return data;
   } catch (error) {
     clearTimeout(timeoutId);
     if (error instanceof Error) {

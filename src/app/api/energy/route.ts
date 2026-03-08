@@ -147,10 +147,13 @@ export async function GET(request: Request) {
       quality,
       meta: {
         source: "eia",
+        dataSource: "eia-api", // Track that data came from real EIA API
         view: "fuel-mix",
         location,
         date,
         summary: generateQualitySummary(quality),
+        recordCount: result.data.length,
+        timestamp: new Date().toISOString(),
       },
     });
 
