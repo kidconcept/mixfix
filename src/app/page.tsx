@@ -1,6 +1,7 @@
 "use client";
 
 import CombinedChart from "@/components/CombinedChart";
+import Message from "@/components/Message";
 import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
@@ -58,9 +59,9 @@ export default function Home() {
   // Load all available balancing authorities from config
   const allBAs = getAllBAs();
   
-  const [location, setLocation] = useState<string>("NYISO");
+  const [location, setLocation] = useState<string>("");
   const [date, setDate] = useState(getTwoDaysAgo());
-  const [zone, setZone] = useState<string>("CAPITL");
+  const [zone, setZone] = useState<string>("");
   const [showBADropdown, setShowBADropdown] = useState(false);
   const [baSearchTerm, setBaSearchTerm] = useState("");
   const [showZoneDropdown, setShowZoneDropdown] = useState(false);
@@ -470,33 +471,37 @@ export default function Home() {
                 onMouseEnter={() => setBaHovered(true)}
                 onMouseLeave={() => setBaHovered(false)}
               >
-                <input
-                  ref={baInputRef}
-                  type="text"
-                  value={baSearchTerm || location}
-                  onChange={(e) => {
-                    setBaSearchTerm(e.target.value);
-                    setShowBADropdown(true);
-                  }}
-                  onFocus={(e) => {
-                    setBaFocused(true);
-                    setShowBADropdown(true);
-                    e.target.select();
-                  }}
-                  onBlur={() => {
-                    setBaFocused(false);
-                    setTimeout(() => setShowBADropdown(false), 200);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.currentTarget.blur();
-                      handleUpdate();
-                    }
-                  }}
-                  placeholder="BA"
-                  className="font-medium focus:outline-none bg-transparent"
-                  style={{ color: 'var(--text-primary)', height: '26px', fieldSizing: 'content', minWidth: '80px' }}
-                />
+                {addressFocused ? (
+                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: '26px', minWidth: '80px' }}>--</span>
+                ) : (
+                  <input
+                    ref={baInputRef}
+                    type="text"
+                    value={baSearchTerm || location}
+                    onChange={(e) => {
+                      setBaSearchTerm(e.target.value);
+                      setShowBADropdown(true);
+                    }}
+                    onFocus={(e) => {
+                      setBaFocused(true);
+                      setShowBADropdown(true);
+                      e.target.select();
+                    }}
+                    onBlur={() => {
+                      setBaFocused(false);
+                      setTimeout(() => setShowBADropdown(false), 200);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.currentTarget.blur();
+                        handleUpdate();
+                      }
+                    }}
+                    placeholder="Select BA"
+                    className="font-medium focus:outline-none bg-transparent"
+                    style={{ color: 'var(--text-primary)', height: '26px', fieldSizing: 'content', minWidth: '80px' }}
+                  />
+                )}
               </div>
             </div>
             {showBADropdown && (
@@ -561,36 +566,40 @@ export default function Home() {
                 onMouseEnter={() => setZoneHovered(true)}
                 onMouseLeave={() => setZoneHovered(false)}
               >
-                <input
-                  ref={zoneInputRef}
-                  type="text"
-                  value={zoneSearchTerm || zone}
-                  onChange={(e) => {
-                    setZoneSearchTerm(e.target.value);
-                    setShowZoneDropdown(true);
-                  }}
-                  onFocus={(e) => {
-                    setZoneFocused(true);
-                    if (supportsPricing) {
+                {addressFocused ? (
+                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: '26px', minWidth: '100px' }}>--</span>
+                ) : (
+                  <input
+                    ref={zoneInputRef}
+                    type="text"
+                    value={zoneSearchTerm || zone}
+                    onChange={(e) => {
+                      setZoneSearchTerm(e.target.value);
                       setShowZoneDropdown(true);
-                    }
-                    e.target.select();
-                  }}
-                  onBlur={() => {
-                    setZoneFocused(false);
-                    setTimeout(() => setShowZoneDropdown(false), 200);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.currentTarget.blur();
-                      handleUpdate();
-                    }
-                  }}
-                  placeholder={supportsPricing ? "Zone" : "N/A"}
-                  disabled={!supportsPricing}
-                  className="font-medium focus:outline-none bg-transparent disabled:cursor-not-allowed"
-                  style={{ color: 'var(--text-primary)', height: '26px', fieldSizing: 'content', minWidth: '100px' }}
-                />
+                    }}
+                    onFocus={(e) => {
+                      setZoneFocused(true);
+                      if (supportsPricing) {
+                        setShowZoneDropdown(true);
+                      }
+                      e.target.select();
+                    }}
+                    onBlur={() => {
+                      setZoneFocused(false);
+                      setTimeout(() => setShowZoneDropdown(false), 200);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.currentTarget.blur();
+                        handleUpdate();
+                      }
+                    }}
+                    placeholder={supportsPricing ? "Select Zone" : "N/A"}
+                    disabled={!supportsPricing}
+                    className="font-medium focus:outline-none bg-transparent disabled:cursor-not-allowed"
+                    style={{ color: 'var(--text-primary)', height: '26px', fieldSizing: 'content', minWidth: '100px' }}
+                  />
+                )}
               </div>
             </div>
             {showZoneDropdown && supportsPricing && (
@@ -636,14 +645,17 @@ export default function Home() {
         {/* Data Display */}
         <div className="mt-8">
           {/* Info message for non-ISO BAs */}
-          {!supportsPricing && (
-            <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--message)' }}>
-              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>ℹ️ Fuel Mix Only</p>
-              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Pricing data is only available for the 7 ISOs with wholesale markets (NYISO, CAISO, PJM, MISO, ERCOT, ISONE, SPP). 
-                Showing fuel mix generation data for {location}.
-              </p>
-            </div>
+          {!supportsPricing && location && (
+            <Message type="info">
+              Pricing data only available for ISOs (NYISO, CAISO, PJM, MISO, ERCOT, ISONE, SPP) — showing fuel mix for {location}
+            </Message>
+          )}
+          
+          {/* Show message if no BA selected */}
+          {!location && (
+            <Message type="info">
+              Search for a Balancing Authority (BA) and zone to see fuel mix and pricing data.
+            </Message>
           )}
           
           {/* Loading state */}
@@ -738,20 +750,12 @@ export default function Home() {
           )}
           
           {/* Show error for non-ISO BAs if fuel mix fails */}
-          {!supportsPricing && !fuelMixData && fuelMixError && (
-            <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
-              <p className="font-semibold" style={{ color: 'var(--alert)' }}>
-                {fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit") 
-                  ? "🚫 EIA API Rate Limit Exceeded" 
-                  : "❌ Fuel Mix Data Failed"}
-              </p>
-              <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
-                {fuelMixError.message || "Unknown error"}
-                {(fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit")) && 
-                  " Please wait for the rate limit to reset or use a different API key."}
-                {fuelMixRetryCount > 0 && !fuelMixError.message?.includes("rate") && ` (Attempted ${fuelMixRetryCount} retries)`}
-              </p>
-            </div>
+          {!supportsPricing && location && !fuelMixData && fuelMixError && (
+            <Message type="error">
+              {fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit") 
+                ? "EIA API rate limit exceeded — please wait and try again"
+                : `Fuel mix data failed: ${fuelMixError.message || "Unknown error"}`}
+            </Message>
           )}
           
           {/* Render chart when any data is available */}
@@ -761,6 +765,8 @@ export default function Home() {
                 fuelMixData={fuelMixData?.hourly || []} 
                 pricingData={displayPricingData || []}
                 location={location}
+                baName={location}
+                zoneName={zone}
               />
               {(fuelMixData?.meta || pricingData?.meta || useMockPricing) && (
                 <div className="text-sm text-left space-y-1" style={{ color: 'var(--text-secondary)' }}>

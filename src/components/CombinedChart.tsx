@@ -19,6 +19,8 @@ interface CombinedChartProps {
   fuelMixData: HistoricalRecord[]; // Secondary/enhancement data (optional)
   pricingData: LMPDataPoint[]; // Primary data (required for chart display)
   location?: string; // ISO/RTO identifier for timezone display
+  baName?: string; // BA name for Y-axis label
+  zoneName?: string; // Zone name for Y-axis label
 }
 
 type DataKey = 'solar' | 'wind' | 'hydro' | 'geothermal' | 'biomass' | 'batteries' | 'imports' | 'other' | 'coal' | 'gas' | 'oil' | 'nuclear' | 'lmp' | 'energy' | 'congestion' | 'loss';
@@ -116,7 +118,7 @@ const CustomTooltip = ({
   );
 };
 
-export default function CombinedChart({ fuelMixData, pricingData, location }: CombinedChartProps) {
+export default function CombinedChart({ fuelMixData, pricingData, location, baName, zoneName }: CombinedChartProps) {
   // Track visibility state for each data series
   const [visibility, setVisibility] = useState<Record<DataKey, boolean>>({
     // Renewables (8)
@@ -318,7 +320,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             tick={{ fill: "var(--text-primary)" }}
             width={40}
             label={{ 
-              value: "Pricing in $/MWh", 
+              value: zoneName ? `${zoneName} in $/MWh` : "Pricing in $/MWh", 
               angle: 0, 
               position: "insideTopLeft",
               offset: -23,
@@ -338,7 +340,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             tick={{ fill: "var(--text-primary)" }}
             width={40}
             label={{ 
-              value: "Generation in GW", 
+              value: baName ? `${baName} mix in GW` : "Generation in GW", 
               angle: 0, 
               position: "insideTopRight",
               offset: -23,
