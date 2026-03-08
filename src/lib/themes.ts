@@ -75,11 +75,11 @@ export const themes: Theme[] = [
       '--fuel-batteries': '#238b45',
       '--fuel-imports': '#006837',
       '--fuel-other': '#3fa66f',
-      // Consumables: Deep greens/olive (more separated)
-      '--fuel-coal': '#5a6b60',
-      '--fuel-gas': '#3d4d43',
-      '--fuel-oil': '#293329',
-      '--fuel-nuclear': '#131813',
+      // Consumables: Warm forest browns
+      '--fuel-coal': '#a68862',
+      '--fuel-gas': '#8b7355',
+      '--fuel-oil': '#6b5442',
+      '--fuel-nuclear': '#4a3d2f',
     }
   },
 ];

@@ -84,6 +84,18 @@ const CustomTooltip = ({
 
   if (filteredPayload.length === 0) return null;
 
+  // Sort to match LEGEND_GROUPS order
+  const sortOrder: DataKey[] = [
+    'lmp', 'energy', 'congestion', 'loss',
+    'solar', 'wind', 'hydro', 'geothermal', 'biomass', 'batteries', 'imports', 'other',
+    'coal', 'gas', 'oil', 'nuclear'
+  ];
+  const sortedPayload = [...filteredPayload].sort((a, b) => {
+    const aIndex = sortOrder.indexOf(a.dataKey as DataKey);
+    const bIndex = sortOrder.indexOf(b.dataKey as DataKey);
+    return aIndex - bIndex;
+  });
+
   return (
     <div 
       style={{
@@ -98,7 +110,7 @@ const CustomTooltip = ({
       <div style={{ color: "var(--text-primary)", fontWeight: 600, marginBottom: "4px" }}>
         {label === 24 ? 'Hour 0:00 (next day)' : `Hour ${label}:00`}
       </div>
-      {filteredPayload.map((item, index) => {
+      {sortedPayload.map((item, index) => {
         const dataKey = String(item.dataKey || '');
         const isPricing = ["lmp", "energy", "congestion", "loss"].includes(dataKey.toLowerCase());
         const displayName = dataKey ? 
@@ -109,8 +121,21 @@ const CustomTooltip = ({
           : `${Number(item.value).toFixed(2)} GW`;
         
         return (
-          <div key={index} style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
-            <span style={{ color: item.color }}>{displayName}</span>: {formattedValue}
+          <div key={index} style={{ 
+            color: "var(--text-primary)", 
+            fontSize: "14px",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px"
+          }}>
+            <span style={{ 
+              width: "12px", 
+              height: "12px", 
+              backgroundColor: item.color,
+              borderRadius: "2px",
+              flexShrink: 0
+            }} />
+            <span>{displayName}: {formattedValue}</span>
           </div>
         );
       })}
@@ -355,30 +380,19 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
           <Tooltip content={<CustomTooltip keysWithData={keysWithData} />} />
           
           {/* Stacked areas for fuel mix (right Y-axis) */}
-          {/* Order: Consumables → Nuclear → Renewables → Other */}
+          {/* Render in REVERSE of tooltip order so visual top-to-bottom matches tooltip top-to-bottom */}
           
-          {/* Consumables */}
+          {/* Consumables in reverse (Nuclear first = visual bottom, Coal last = visual top of consumables) */}
           <Area
             yAxisId="generation"
             type="monotone"
-            dataKey="coal"
+            dataKey="nuclear"
             stackId="1"
-            stroke="var(--fuel-coal)"
-            fill="var(--fuel-coal)"
+            stroke="var(--fuel-nuclear)"
+            fill="var(--fuel-nuclear)"
             fillOpacity={0.95}
-            name="Coal"
-            hide={!visibility.coal}
-          />
-          <Area
-            yAxisId="generation"
-            type="monotone"
-            dataKey="gas"
-            stackId="1"
-            stroke="var(--fuel-gas)"
-            fill="var(--fuel-gas)"
-            fillOpacity={0.95}
-            name="Gas"
-            hide={!visibility.gas}
+            name="Nuclear"
+            hide={!visibility.nuclear}
           />
           <Area
             yAxisId="generation"
@@ -394,81 +408,37 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
           <Area
             yAxisId="generation"
             type="monotone"
-            dataKey="nuclear"
+            dataKey="gas"
             stackId="1"
-            stroke="var(--fuel-nuclear)"
-            fill="var(--fuel-nuclear)"
+            stroke="var(--fuel-gas)"
+            fill="var(--fuel-gas)"
             fillOpacity={0.95}
-            name="Nuclear"
-            hide={!visibility.nuclear}
+            name="Gas"
+            hide={!visibility.gas}
+          />
+          <Area
+            yAxisId="generation"
+            type="monotone"
+            dataKey="coal"
+            stackId="1"
+            stroke="var(--fuel-coal)"
+            fill="var(--fuel-coal)"
+            fillOpacity={0.95}
+            name="Coal"
+            hide={!visibility.coal}
           />
           
-          {/* Renewables */}
+          {/* Renewables in reverse (Other first = bottom of renewables, Solar last = visual top) */}
           <Area
             yAxisId="generation"
             type="monotone"
-            dataKey="solar"
+            dataKey="other"
             stackId="1"
-            stroke="var(--fuel-solar)"
-            fill="var(--fuel-solar)"
+            stroke="var(--fuel-other)"
+            fill="var(--fuel-other)"
             fillOpacity={0.95}
-            name="Solar"
-            hide={!visibility.solar}
-          />
-          <Area
-            yAxisId="generation"
-            type="monotone"
-            dataKey="wind"
-            stackId="1"
-            stroke="var(--fuel-wind)"
-            fill="var(--fuel-wind)"
-            fillOpacity={0.95}
-            name="Wind"
-            hide={!visibility.wind}
-          />
-          <Area
-            yAxisId="generation"
-            type="monotone"
-            dataKey="hydro"
-            stackId="1"
-            stroke="var(--fuel-hydro)"
-            fill="var(--fuel-hydro)"
-            fillOpacity={0.95}
-            name="Hydro"
-            hide={!visibility.hydro}
-          />
-          <Area
-            yAxisId="generation"
-            type="monotone"
-            dataKey="geothermal"
-            stackId="1"
-            stroke="var(--fuel-geothermal)"
-            fill="var(--fuel-geothermal)"
-            fillOpacity={0.95}
-            name="Geothermal"
-            hide={!visibility.geothermal}
-          />
-          <Area
-            yAxisId="generation"
-            type="monotone"
-            dataKey="biomass"
-            stackId="1"
-            stroke="var(--fuel-biomass)"
-            fill="var(--fuel-biomass)"
-            fillOpacity={0.95}
-            name="Biomass"
-            hide={!visibility.biomass}
-          />
-          <Area
-            yAxisId="generation"
-            type="monotone"
-            dataKey="batteries"
-            stackId="1"
-            stroke="var(--fuel-batteries)"
-            fill="var(--fuel-batteries)"
-            fillOpacity={0.95}
-            name="Batteries"
-            hide={!visibility.batteries}
+            name="Other"
+            hide={!visibility.other}
           />
           <Area
             yAxisId="generation"
@@ -484,13 +454,68 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
           <Area
             yAxisId="generation"
             type="monotone"
-            dataKey="other"
+            dataKey="batteries"
             stackId="1"
-            stroke="var(--fuel-other)"
-            fill="var(--fuel-other)"
+            stroke="var(--fuel-batteries)"
+            fill="var(--fuel-batteries)"
             fillOpacity={0.95}
-            name="Other"
-            hide={!visibility.other}
+            name="Batteries"
+            hide={!visibility.batteries}
+          />
+          <Area
+            yAxisId="generation"
+            type="monotone"
+            dataKey="biomass"
+            stackId="1"
+            stroke="var(--fuel-biomass)"
+            fill="var(--fuel-biomass)"
+            fillOpacity={0.95}
+            name="Biomass"
+            hide={!visibility.biomass}
+          />
+          <Area
+            yAxisId="generation"
+            type="monotone"
+            dataKey="geothermal"
+            stackId="1"
+            stroke="var(--fuel-geothermal)"
+            fill="var(--fuel-geothermal)"
+            fillOpacity={0.95}
+            name="Geothermal"
+            hide={!visibility.geothermal}
+          />
+          <Area
+            yAxisId="generation"
+            type="monotone"
+            dataKey="hydro"
+            stackId="1"
+            stroke="var(--fuel-hydro)"
+            fill="var(--fuel-hydro)"
+            fillOpacity={0.95}
+            name="Hydro"
+            hide={!visibility.hydro}
+          />
+          <Area
+            yAxisId="generation"
+            type="monotone"
+            dataKey="wind"
+            stackId="1"
+            stroke="var(--fuel-wind)"
+            fill="var(--fuel-wind)"
+            fillOpacity={0.95}
+            name="Wind"
+            hide={!visibility.wind}
+          />
+          <Area
+            yAxisId="generation"
+            type="monotone"
+            dataKey="solar"
+            stackId="1"
+            stroke="var(--fuel-solar)"
+            fill="var(--fuel-solar)"
+            fillOpacity={0.95}
+            name="Solar"
+            hide={!visibility.solar}
           />
 
           {/* Lines for LMP components (left Y-axis) */}
