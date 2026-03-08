@@ -10,10 +10,8 @@ interface MessageProps {
 }
 
 export default function Message({ children, type = 'info', className = '' }: MessageProps) {
-  const color = type === 'error' ? 'var(--alert)' : 'var(--text-secondary)';
-  
   return (
-    <div className={`text-left text-sm ${className}`} style={{ color }}>
+    <div className={`text-left text-sm ${className}`} style={{ color: 'var(--text-primary)' }}>
       {children}
     </div>
   );
