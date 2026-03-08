@@ -6,7 +6,7 @@ import ThemeSwitcher from "../components/ThemeSwitcher";
 import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
-import { getAllBAs, getZones, hasPricingData, getRepresentativeZone } from "@/lib/config/balancing-authorities";
+import { getAllBAs, getZones, getZonesWithNames, hasPricingData, getRepresentativeZone } from "@/lib/config/balancing-authorities";
 import { LMPDataPoint } from "@/types/energy";
 
 // Fetcher with timeout for client-side requests
@@ -156,6 +156,8 @@ export default function Home() {
   const zoneInputRef = useRef<HTMLInputElement>(null);
   const baDropdownRef = useRef<HTMLDivElement>(null);
   const selectedBARef = useRef<HTMLButtonElement>(null);
+  const zoneDropdownRef = useRef<HTMLDivElement>(null);
+  const selectedZoneRef = useRef<HTMLButtonElement>(null);
 
   // Scroll selected BA into center view when dropdown opens
   useEffect(() => {
@@ -165,6 +167,15 @@ export default function Home() {
       }, 0);
     }
   }, [showBADropdown]);
+
+  // Scroll selected zone into center view when dropdown opens
+  useEffect(() => {
+    if (showZoneDropdown && selectedZoneRef.current && zoneDropdownRef.current) {
+      setTimeout(() => {
+        selectedZoneRef.current?.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }, 0);
+    }
+  }, [showZoneDropdown]);
 
   // Generate mock pricing data for development/testing
   const generateMockPricingData = (date: string): LMPDataPoint[] => {
@@ -692,37 +703,44 @@ export default function Home() {
             </div>
             {showZoneDropdown && supportsPricing && (
               <div 
-                className="absolute z-10 mt-1 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                ref={zoneDropdownRef}
+                className="absolute z-10 mt-1 rounded-lg shadow-lg overflow-y-auto"
                 style={{ 
-                  backgroundColor: 'var(--bg-secondary)',
+                  backgroundColor: 'var(--background)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
-                  borderColor: 'var(--text-secondary)',
-                  minWidth: '250px'
+                  borderColor: 'var(--active)',
+                  minWidth: '300px',
+                  maxHeight: '240px'
                 }}
               >
-                {getZones(location)
+                {getZonesWithNames(location)
                   .filter(z => 
                     !zoneSearchTerm || 
-                    z.toLowerCase().includes(zoneSearchTerm.toLowerCase())
+                    z.code.toLowerCase().includes(zoneSearchTerm.toLowerCase()) ||
+                    z.name.toLowerCase().includes(zoneSearchTerm.toLowerCase())
                   )
                   .map(z => (
                     <button
-                      key={z}
+                      key={z.code}
+                      ref={zone === z.code ? selectedZoneRef : null}
                       onClick={() => {
-                        setZone(z);
+                        setZone(z.code);
                         setZoneSearchTerm("");
                         setShowZoneDropdown(false);
                         setFuelMixRetryCount(0);
                         setPricingRetryCount(0);
                       }}
-                      className="w-full text-left px-4 py-2 hover:bg-opacity-80 transition-colors"
+                      className="w-full text-left px-4 py-1.5 hover:bg-opacity-80 transition-colors"
                       style={{ 
-                        backgroundColor: zone === z ? 'var(--active)' : 'transparent',
+                        backgroundColor: zone === z.code ? 'var(--active)' : 'transparent',
                         color: 'var(--text-primary)'
                       }}
                     >
-                      <div className="font-semibold">{z}</div>
+                      <div className="text-base">{z.name}</div>
+                      <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        {z.code}
+                      </div>
                     </button>
                   ))}
               </div>

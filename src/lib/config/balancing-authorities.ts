@@ -8,6 +8,7 @@
  */
 
 import baConfig from '../../../config/balancing-authorities.json';
+import zoneBoundaries from '../../../config/zone-boundaries.json';
 
 export interface BAConfig {
   code: string;
@@ -21,10 +22,31 @@ export interface BAConfig {
   representativeZone?: string;
 }
 
+export interface ZoneBoundary {
+  zone: string;
+  name: string;
+  bounds: {
+    minLat: number;
+    maxLat: number;
+    minLon: number;
+    maxLon: number;
+  };
+}
+
+export interface ZoneInfo {
+  code: string;
+  name: string;
+}
+
 type BAConfigMap = Record<string, BAConfig>;
+
+interface ISOZoneBoundaries {
+  zones: ZoneBoundary[];
+}
 
 // Load config at module initialization
 const config: BAConfigMap = baConfig as BAConfigMap;
+const boundaries: Record<string, ISOZoneBoundaries> = zoneBoundaries as Record<string, ISOZoneBoundaries>;
 
 /**
  * Get all balancing authorities
@@ -105,4 +127,38 @@ export function getAllBACodes(): string[] {
  */
 export function getISOs(): BAConfig[] {
   return Object.values(config).filter(ba => ba.type === 'ISO');
+}
+
+/**
+ * Get zone information with code and name
+ */
+export function getZonesWithNames(baCode: string): ZoneInfo[] {
+  const ba = getBAConfig(baCode);
+  if (!ba?.zones) return [];
+  
+  const isoBoundaries = boundaries[baCode];
+  if (!isoBoundaries) {
+    // If no boundary data, return zones with code as name
+    return ba.zones.map(code => ({ code, name: code }));
+  }
+  
+  // Map zone codes to their names from boundaries
+  return ba.zones.map(code => {
+    const zoneBoundary = isoBoundaries.zones.find(z => z.zone === code);
+    return {
+      code,
+      name: zoneBoundary?.name || code
+    };
+  });
+}
+
+/**
+ * Get zone name for a specific zone code
+ */
+export function getZoneName(baCode: string, zoneCode: string): string | undefined {
+  const isoBoundaries = boundaries[baCode];
+  if (!isoBoundaries) return zoneCode;
+  
+  const zoneBoundary = isoBoundaries.zones.find(z => z.zone === zoneCode);
+  return zoneBoundary?.name || zoneCode;
 }

@@ -62,17 +62,17 @@
     "zones": [
       {
         "zone": "TH_SP15_GEN-APND",
-        "name": "SP15 (Southern California)",
+        "name": "Southern California (SP15)",
         "bounds": { "minLat": 32.50, "maxLat": 35.80, "minLon": -121.00, "maxLon": -114.10 }
       },
       {
         "zone": "TH_NP15_GEN-APND",
-        "name": "NP15 (Northern California)",
+        "name": "Northern California (NP15)",
         "bounds": { "minLat": 35.80, "maxLat": 42.00, "minLon": -124.50, "maxLon": -119.50 }
       },
       {
         "zone": "TH_ZP26_GEN-APND",
-        "name": "ZP26 (Central California)",
+        "name": "Central California (ZP26)",
         "bounds": { "minLat": 35.00, "maxLat": 37.50, "minLon": -122.50, "maxLon": -119.50 }
       }
     ]
