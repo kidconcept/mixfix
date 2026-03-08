@@ -1,0 +1,623 @@
+{
+  "AECI": {
+    "code": "AECI",
+    "eiaCode": "AECI",
+    "name": "AECI",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "AVA": {
+    "code": "AVA",
+    "eiaCode": "AVA",
+    "name": "AVA",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "AVRN": {
+    "code": "AVRN",
+    "eiaCode": "AVRN",
+    "name": "AVRN",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "AZPS": {
+    "code": "AZPS",
+    "eiaCode": "AZPS",
+    "name": "AZPS",
+    "type": "Utility",
+    "timezone": "America/Denver",
+    "hasPricing": false
+  },
+  "BANC": {
+    "code": "BANC",
+    "eiaCode": "BANC",
+    "name": "BANC",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "BPAT": {
+    "code": "BPAT",
+    "eiaCode": "BPAT",
+    "name": "BPAT",
+    "type": "Utility",
+    "timezone": "America/Los_Angeles",
+    "hasPricing": false
+  },
+  "CAL": {
+    "code": "CAL",
+    "eiaCode": "CAL",
+    "name": "CAL",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "CAR": {
+    "code": "CAR",
+    "eiaCode": "CAR",
+    "name": "CAR",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "CENT": {
+    "code": "CENT",
+    "eiaCode": "CENT",
+    "name": "CENT",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "CHPD": {
+    "code": "CHPD",
+    "eiaCode": "CHPD",
+    "name": "CHPD",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "CAISO": {
+    "code": "CAISO",
+    "eiaCode": "CISO",
+    "name": "CISO Independent System Operator",
+    "type": "ISO",
+    "timezone": "America/Los_Angeles",
+    "hasPricing": true,
+    "gridStatusDataset": "caiso_lmp_real_time_15_min",
+    "zones": [],
+    "representativeZone": "SP15"
+  },
+  "CPLE": {
+    "code": "CPLE",
+    "eiaCode": "CPLE",
+    "name": "CPLE",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "CPLW": {
+    "code": "CPLW",
+    "eiaCode": "CPLW",
+    "name": "CPLW",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "DEAA": {
+    "code": "DEAA",
+    "eiaCode": "DEAA",
+    "name": "DEAA",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "DOPD": {
+    "code": "DOPD",
+    "eiaCode": "DOPD",
+    "name": "DOPD",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "DUK": {
+    "code": "DUK",
+    "eiaCode": "DUK",
+    "name": "DUK",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "EPE": {
+    "code": "EPE",
+    "eiaCode": "EPE",
+    "name": "EPE",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "ERCOT": {
+    "code": "ERCOT",
+    "eiaCode": "ERCO",
+    "name": "ERCO Independent System Operator",
+    "type": "ISO",
+    "timezone": "America/Chicago",
+    "hasPricing": true,
+    "gridStatusDataset": "ercot_lmp_by_settlement_point",
+    "zones": [],
+    "representativeZone": "HB_HOUSTON"
+  },
+  "FLA": {
+    "code": "FLA",
+    "eiaCode": "FLA",
+    "name": "FLA",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "FMPP": {
+    "code": "FMPP",
+    "eiaCode": "FMPP",
+    "name": "FMPP",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "FPC": {
+    "code": "FPC",
+    "eiaCode": "FPC",
+    "name": "FPC",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "FPL": {
+    "code": "FPL",
+    "eiaCode": "FPL",
+    "name": "FPL",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "GCPD": {
+    "code": "GCPD",
+    "eiaCode": "GCPD",
+    "name": "GCPD",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "GRID": {
+    "code": "GRID",
+    "eiaCode": "GRID",
+    "name": "GRID",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "GVL": {
+    "code": "GVL",
+    "eiaCode": "GVL",
+    "name": "GVL",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "GWA": {
+    "code": "GWA",
+    "eiaCode": "GWA",
+    "name": "GWA",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "HGMA": {
+    "code": "HGMA",
+    "eiaCode": "HGMA",
+    "name": "HGMA",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "HST": {
+    "code": "HST",
+    "eiaCode": "HST",
+    "name": "HST",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "IID": {
+    "code": "IID",
+    "eiaCode": "IID",
+    "name": "IID",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "IPCO": {
+    "code": "IPCO",
+    "eiaCode": "IPCO",
+    "name": "IPCO",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "ISONE": {
+    "code": "ISONE",
+    "eiaCode": "ISNE",
+    "name": "ISNE Independent System Operator",
+    "type": "ISO",
+    "timezone": "America/New_York",
+    "hasPricing": true,
+    "gridStatusDataset": "isone_lmp_real_time_hourly_final",
+    "zones": [],
+    "representativeZone": ".H.INTERNAL_HUB"
+  },
+  "JEA": {
+    "code": "JEA",
+    "eiaCode": "JEA",
+    "name": "JEA",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "LDWP": {
+    "code": "LDWP",
+    "eiaCode": "LDWP",
+    "name": "LDWP",
+    "type": "Utility",
+    "timezone": "America/Los_Angeles",
+    "hasPricing": false
+  },
+  "LGEE": {
+    "code": "LGEE",
+    "eiaCode": "LGEE",
+    "name": "LGEE",
+    "type": "Utility",
+    "timezone": "America/Chicago",
+    "hasPricing": false
+  },
+  "MIDA": {
+    "code": "MIDA",
+    "eiaCode": "MIDA",
+    "name": "MIDA",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "MIDW": {
+    "code": "MIDW",
+    "eiaCode": "MIDW",
+    "name": "MIDW",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "MISO": {
+    "code": "MISO",
+    "eiaCode": "MISO",
+    "name": "MISO Independent System Operator",
+    "type": "ISO",
+    "timezone": "America/Chicago",
+    "hasPricing": true,
+    "gridStatusDataset": "miso_lmp_real_time_hourly_final",
+    "zones": [],
+    "representativeZone": "MISO.ILLINOIS"
+  },
+  "NE": {
+    "code": "NE",
+    "eiaCode": "NE",
+    "name": "NE",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "NEVP": {
+    "code": "NEVP",
+    "eiaCode": "NEVP",
+    "name": "NEVP",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "NW": {
+    "code": "NW",
+    "eiaCode": "NW",
+    "name": "NW",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "NWMT": {
+    "code": "NWMT",
+    "eiaCode": "NWMT",
+    "name": "NWMT",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "NY": {
+    "code": "NY",
+    "eiaCode": "NY",
+    "name": "NY",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "NYISO": {
+    "code": "NYISO",
+    "eiaCode": "NYIS",
+    "name": "NYIS Independent System Operator",
+    "type": "ISO",
+    "timezone": "America/New_York",
+    "hasPricing": true,
+    "gridStatusDataset": "nyiso_lmp_real_time_hourly",
+    "zones": [],
+    "representativeZone": "CENTRL"
+  },
+  "PACE": {
+    "code": "PACE",
+    "eiaCode": "PACE",
+    "name": "PACE",
+    "type": "Utility",
+    "timezone": "America/Denver",
+    "hasPricing": false
+  },
+  "PACW": {
+    "code": "PACW",
+    "eiaCode": "PACW",
+    "name": "PACW",
+    "type": "Utility",
+    "timezone": "America/Los_Angeles",
+    "hasPricing": false
+  },
+  "PGE": {
+    "code": "PGE",
+    "eiaCode": "PGE",
+    "name": "PGE",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "PJM": {
+    "code": "PJM",
+    "eiaCode": "PJM",
+    "name": "PJM Independent System Operator",
+    "type": "ISO",
+    "timezone": "America/New_York",
+    "hasPricing": true,
+    "gridStatusDataset": "pjm_lmp_real_time_hourly",
+    "zones": [],
+    "representativeZone": "AEP"
+  },
+  "PNM": {
+    "code": "PNM",
+    "eiaCode": "PNM",
+    "name": "PNM",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "PSCO": {
+    "code": "PSCO",
+    "eiaCode": "PSCO",
+    "name": "PSCO",
+    "type": "Utility",
+    "timezone": "America/Denver",
+    "hasPricing": false
+  },
+  "PSEI": {
+    "code": "PSEI",
+    "eiaCode": "PSEI",
+    "name": "PSEI",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "SC": {
+    "code": "SC",
+    "eiaCode": "SC",
+    "name": "SC",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "SCEG": {
+    "code": "SCEG",
+    "eiaCode": "SCEG",
+    "name": "SCEG",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "SCL": {
+    "code": "SCL",
+    "eiaCode": "SCL",
+    "name": "SCL",
+    "type": "Regional",
+    "timezone": "America/Los_Angeles",
+    "hasPricing": false
+  },
+  "SE": {
+    "code": "SE",
+    "eiaCode": "SE",
+    "name": "SE",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "SEC": {
+    "code": "SEC",
+    "eiaCode": "SEC",
+    "name": "SEC",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "SEPA": {
+    "code": "SEPA",
+    "eiaCode": "SEPA",
+    "name": "SEPA",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "SOCO": {
+    "code": "SOCO",
+    "eiaCode": "SOCO",
+    "name": "SOCO",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "SPA": {
+    "code": "SPA",
+    "eiaCode": "SPA",
+    "name": "SPA",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "SRP": {
+    "code": "SRP",
+    "eiaCode": "SRP",
+    "name": "SRP",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "SW": {
+    "code": "SW",
+    "eiaCode": "SW",
+    "name": "SW",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "SPP": {
+    "code": "SPP",
+    "eiaCode": "SWPP",
+    "name": "SWPP Independent System Operator",
+    "type": "ISO",
+    "timezone": "America/Chicago",
+    "hasPricing": true,
+    "gridStatusDataset": "spp_lmp_real_time_5_min",
+    "zones": [],
+    "representativeZone": "SPP.SPPSYSTEM"
+  },
+  "TAL": {
+    "code": "TAL",
+    "eiaCode": "TAL",
+    "name": "TAL",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "TEC": {
+    "code": "TEC",
+    "eiaCode": "TEC",
+    "name": "TEC",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "TEN": {
+    "code": "TEN",
+    "eiaCode": "TEN",
+    "name": "TEN",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "TEPC": {
+    "code": "TEPC",
+    "eiaCode": "TEPC",
+    "name": "TEPC",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "TEX": {
+    "code": "TEX",
+    "eiaCode": "TEX",
+    "name": "TEX",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "TIDC": {
+    "code": "TIDC",
+    "eiaCode": "TIDC",
+    "name": "TIDC",
+    "type": "Utility",
+    "timezone": "America/Los_Angeles",
+    "hasPricing": false
+  },
+  "TPWR": {
+    "code": "TPWR",
+    "eiaCode": "TPWR",
+    "name": "TPWR",
+    "type": "Utility",
+    "timezone": "America/Denver",
+    "hasPricing": false
+  },
+  "TVA": {
+    "code": "TVA",
+    "eiaCode": "TVA",
+    "name": "TVA",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "US48": {
+    "code": "US48",
+    "eiaCode": "US48",
+    "name": "US48",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "WACM": {
+    "code": "WACM",
+    "eiaCode": "WACM",
+    "name": "WACM",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "WALC": {
+    "code": "WALC",
+    "eiaCode": "WALC",
+    "name": "WALC",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "WAUW": {
+    "code": "WAUW",
+    "eiaCode": "WAUW",
+    "name": "WAUW",
+    "type": "Utility",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "WWA": {
+    "code": "WWA",
+    "eiaCode": "WWA",
+    "name": "WWA",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  },
+  "YAD": {
+    "code": "YAD",
+    "eiaCode": "YAD",
+    "name": "YAD",
+    "type": "Regional",
+    "timezone": "America/New_York",
+    "hasPricing": false
+  }
+}

@@ -405,7 +405,7 @@ export default function Home() {
               className="block text-sm font-semibold mb-2"
               style={{ color: 'var(--text-primary)' }}
             >
-              Operating Region (ISO/RTO BA):
+              Balancing Authority:
             </label>
             <input
               id="location"
