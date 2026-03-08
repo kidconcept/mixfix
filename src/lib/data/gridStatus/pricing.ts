@@ -15,27 +15,14 @@
 import { LMPDataPoint } from "@/types/energy";
 import { gridStatusQueue, RequestResult } from "../queue/requestQueue";
 import { convertUTCToLocalHour, convertUTCToLocalDate } from "../../timezone";
+import { 
+  hasPricingData, 
+  getGridStatusDataset, 
+  getRepresentativeZone,
+  getBAConfig 
+} from "../../config/balancing-authorities";
 
 const GRID_STATUS_BASE = "https://api.gridstatus.io/v1";
-
-// Mapping ISO names to Grid Status LMP dataset IDs
-// Preference for hourly datasets to minimize data volume
-const ISO_LMP_DATASET_MAP: Record<string, { dataset: string; interval: 'hourly' | 'sub-hourly' }> = {
-  NYISO: { dataset: "nyiso_lmp_real_time_hourly", interval: 'hourly' },
-  NYIS: { dataset: "nyiso_lmp_real_time_hourly", interval: 'hourly' },
-  ISONE: { dataset: "isone_lmp_real_time_hourly_final", interval: 'hourly' },
-  ISNE: { dataset: "isone_lmp_real_time_hourly_final", interval: 'hourly' },
-  PJM: { dataset: "pjm_lmp_real_time_hourly", interval: 'hourly' },
-  MISO: { dataset: "miso_lmp_real_time_hourly_final", interval: 'hourly' },
-  
-  // Sub-hourly datasets (require aggregation)
-  CAISO: { dataset: "caiso_lmp_real_time_15_min", interval: 'sub-hourly' },
-  CISO: { dataset: "caiso_lmp_real_time_15_min", interval: 'sub-hourly' },
-  ERCOT: { dataset: "ercot_lmp_by_settlement_point", interval: 'sub-hourly' },
-  ERCO: { dataset: "ercot_lmp_by_settlement_point", interval: 'sub-hourly' },
-  SPP: { dataset: "spp_lmp_real_time_5_min", interval: 'sub-hourly' },
-  SWPP: { dataset: "spp_lmp_real_time_5_min", interval: 'sub-hourly' },
-};
 
 interface GridStatusLMPRow {
   interval_start_utc: string;
@@ -62,26 +49,15 @@ interface GridStatusLMPResponse {
  * Check if an ISO is supported for LMP data
  */
 export function isPricingSupported(iso: string): boolean {
-  const isoUpper = iso.toUpperCase();
-  return !!ISO_LMP_DATASET_MAP[isoUpper];
+  return hasPricingData(iso);
 }
 
 /**
- * Get available pricing nodes for an ISO
- * This is a helper for UI to display node options
+ * Get default pricing zone for an ISO
+ * This is a helper for UI to display zone options
  */
 export function getDefaultPricingNode(iso: string): string {
-  const defaults: Record<string, string> = {
-    NYISO: "CAPITL",
-    CAISO: "SLAP_PGAE-APND",
-    PJM: "AEP",
-    MISO: "MISO.ILLINOIS",
-    ERCOT: "HB_HOUSTON",
-    ISONE: ".H.INTERNAL_HUB",
-    SPP: "SPP.SPPSYSTEM",
-  };
-  
-  return defaults[iso.toUpperCase()] || "HUB";
+  return getRepresentativeZone(iso) || "HUB";
 }
 
 /**
@@ -111,9 +87,9 @@ export async function fetchGridStatusPricing(
   }
 
   const isoUpper = iso.toUpperCase();
-  const config = ISO_LMP_DATASET_MAP[isoUpper];
+  const dataset = getGridStatusDataset(isoUpper);
   
-  if (!config) {
+  if (!dataset) {
     return {
       success: false,
       error: {
@@ -124,8 +100,13 @@ export async function fetchGridStatusPricing(
     };
   }
 
+  // Determine interval type based on dataset name
+  const interval = dataset.includes('_5_min') || dataset.includes('_15_min') || dataset.includes('settlement_point')
+    ? 'sub-hourly' 
+    : 'hourly';
+
   // Build query URL
-  const url = buildQueryURL(config.dataset, node, date);
+  const url = buildQueryURL(dataset, node, date);
 
   // Execute request through queue with timeout and retry
   const result = await gridStatusQueue.request(
@@ -158,7 +139,7 @@ export async function fetchGridStatusPricing(
   }
 
   // Transform and aggregate data
-  const records = config.interval === 'hourly'
+  const records = interval === 'hourly'
     ? transformHourlyData(result.data, iso, date)
     : transformSubHourlyData(result.data, iso, date);
 

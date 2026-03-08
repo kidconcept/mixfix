@@ -13,6 +13,7 @@
 
 import { HistoricalRecord, EnergySource } from "@/types/energy";
 import { eiaQueue, RequestResult } from "../queue/requestQueue";
+import { getEIACode } from "../../config/balancing-authorities";
 
 const EIA_BASE = "https://api.eia.gov/v2";
 const EIA_RTO_ENDPOINT = `${EIA_BASE}/electricity/rto/fuel-type-data/data/`;
@@ -27,22 +28,6 @@ const FUELTYPEID_MAP: Record<string, EnergySource> = {
   WND: "wind",
   OIL: "oil",
   OTH: "other",
-};
-
-// Balancing authority mapping for EIA API
-const BALANCING_AUTHORITY_MAP: Record<string, string> = {
-  NYISO: "NYIS",
-  NYIS: "NYIS",
-  CAISO: "CISO",
-  CISO: "CISO",
-  PJM: "PJM",
-  MISO: "MISO",
-  ERCOT: "ERCO",
-  ERCO: "ERCO",
-  SPP: "SWPP",
-  SWPP: "SWPP",
-  ISONE: "ISNE",
-  ISNE: "ISNE",
 };
 
 interface EIARow {
@@ -160,9 +145,11 @@ function buildParams(apiKey: string, location: string, date: string): URLSearchP
   
   // Location facet
   const upperLoc = location.toUpperCase();
-  if (BALANCING_AUTHORITY_MAP[upperLoc]) {
-    // ISO/RTO balancing authority
-    params.append("facets[respondent][]", BALANCING_AUTHORITY_MAP[upperLoc]);
+  const eiaCode = getEIACode(upperLoc);
+  
+  if (eiaCode) {
+    // Balancing authority (from config)
+    params.append("facets[respondent][]", eiaCode);
   } else if (upperLoc.length === 2) {
     // State code
     params.append("facets[stateid][]", upperLoc);
