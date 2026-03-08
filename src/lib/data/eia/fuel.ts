@@ -14,6 +14,7 @@
 import { HistoricalRecord, EnergySource } from "@/types/energy";
 import { eiaQueue, RequestResult } from "../queue/requestQueue";
 import { getEIACode } from "../../config/balancing-authorities";
+import { convertUTCToLocalDate, convertUTCToLocalHour } from "../../timezone";
 
 const EIA_BASE = "https://api.eia.gov/v2";
 const EIA_RTO_ENDPOINT = `${EIA_BASE}/electricity/rto/fuel-type-data/data/`;
@@ -126,7 +127,7 @@ export async function fetchEIAFuelMix(
 
   // Transform EIA rows to hourly records
   const rawRowCount = result.data.length;
-  const records = transformEIAData(result.data, date);
+  const records = transformEIAData(result.data, date, location);
   
   const totalTime = Date.now() - startTime;
   console.log(`[EIA] Total request time (including queue/retry): ${totalTime}ms`);
@@ -156,14 +157,17 @@ function buildParams(apiKey: string, location: string, date: string): URLSearchP
   // Without this, we'd get 288 5-minute intervals (12x more data)
   params.set("frequency", "hourly");
   
-  // Time range: requested day plus hour 0 of next day (00:00 to next day 00:00)
-  // This gives us 25 hours to show the daily cycle completing
+  // Time range in UTC: requested day through the following UTC day.
+  // We need this wider window because we later convert to local time and keep
+  // local hours 0-23 plus next day's local hour 0 (bucket 24).
   const [year, month, day] = date.split('-').map(Number);
   const nextDate = new Date(year, month - 1, day + 1);
   const nextDayStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
+  const dayAfterNextDate = new Date(year, month - 1, day + 2);
+  const dayAfterNextStr = `${dayAfterNextDate.getFullYear()}-${String(dayAfterNextDate.getMonth() + 1).padStart(2, '0')}-${String(dayAfterNextDate.getDate()).padStart(2, '0')}`;
   
   params.set("start", `${date}T00`);
-  params.set("end", `${nextDayStr}T00`);
+  params.set("end", `${dayAfterNextStr}T00`);
   
   // Sorting
   params.set("sort[0][column]", "period");
@@ -196,8 +200,8 @@ function buildParams(apiKey: string, location: string, date: string): URLSearchP
  * - Uses null for missing fuel types (not zero)
  * - Only includes hours within the requested date
  */
-function transformEIAData(rows: EIARow[], date: string): HistoricalRecord[] {
-  const hourlyMap = new Map<string, Map<EnergySource, number>>();
+function transformEIAData(rows: EIARow[], date: string, location: string): HistoricalRecord[] {
+  const hourlyMap = new Map<number, Map<EnergySource, number>>();
   
   // Calculate next day for hour 24 mapping (simple string arithmetic to avoid timezone issues)
   const [year, month, day] = date.split('-').map(Number);
@@ -205,31 +209,31 @@ function transformEIAData(rows: EIARow[], date: string): HistoricalRecord[] {
   const nextDayStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
 
   for (const row of rows) {
-    let hour = row.period;
-    
-    // Handle hour 24 notation (ISO 8601): convert to next day's hour 0
-    if (hour && hour.includes('T24')) {
-      hour = hour.replace('T24', 'T00');
-      // Update date part if needed
-      const datePart = hour.split('T')[0];
-      if (datePart === date) {
-        hour = `${nextDayStr}T00`;
-      }
+    if (!row.period) {
+      continue;
     }
-    
-    // Accept hours from requested date OR hour 0 of next day
-    const isRequestedDate = hour && hour.startsWith(date);
-    const isNextDayHour0 = hour && hour.startsWith(`${nextDayStr}T00`);
-    
-    if (!hour || (!isRequestedDate && !isNextDayHour0)) {
+
+    // Convert EIA UTC period into local date/hour for the selected BA.
+    const localDate = convertUTCToLocalDate(row.period, location);
+    const localHour = convertUTCToLocalHour(row.period, location);
+
+    // Keep 25-hour range: requested day hours 0-23 plus next-day hour 0 as bucket 24.
+    let bucketHour: number | null = null;
+    if (localDate === date) {
+      bucketHour = localHour;
+    } else if (localDate === nextDayStr && localHour === 0) {
+      bucketHour = 24;
+    }
+
+    if (bucketHour === null) {
       continue;
     }
 
     // Get or create hour map
-    if (!hourlyMap.has(hour)) {
-      hourlyMap.set(hour, new Map());
+    if (!hourlyMap.has(bucketHour)) {
+      hourlyMap.set(bucketHour, new Map());
     }
-    const hourData = hourlyMap.get(hour)!;
+    const hourData = hourlyMap.get(bucketHour)!;
 
     // Map fuel type and accumulate value
     const source: EnergySource = FUELTYPEID_MAP[row.fueltype] ?? "other";
@@ -243,21 +247,15 @@ function transformEIAData(rows: EIARow[], date: string): HistoricalRecord[] {
   const records: HistoricalRecord[] = [];
   
   // Sort hours chronologically
-  const sortedHours = Array.from(hourlyMap.keys()).sort();
+  const sortedHours = Array.from(hourlyMap.keys()).sort((a, b) => a - b);
   
   for (const hour of sortedHours) {
     const sources = hourlyMap.get(hour)!;
     
-    // Map next day's hour 0 to hour 24 for display
-    let displayHour = hour;
-    if (hour.startsWith(`${nextDayStr}T00`)) {
-      displayHour = `${date}T24`;
-    }
-    
     // Build record with null for missing sources (NOT zero)
     // This allows validation layer to detect gaps vs actual zero generation
     const record: HistoricalRecord = {
-      date: displayHour,
+      date: `${date}T${String(hour).padStart(2, '0')}`,
     };
 
     // Add all fuel types that have data

@@ -14,7 +14,7 @@ import {
   TooltipProps,
 } from "recharts";
 import { HistoricalRecord, LMPDataPoint } from "@/types/energy";
-import { getTimezoneAbbreviation, convertUTCToLocalHour } from "@/lib/timezone";
+import { getTimezoneAbbreviation } from "@/lib/timezone";
 
 interface CombinedChartProps {
   fuelMixData: HistoricalRecord[]; // Secondary/enhancement data (optional)
@@ -246,26 +246,26 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
     return tz ? `${formattedDate} (${tz})` : formattedDate;
   };
 
-  // Process fuel mix data by hour (convert UTC timestamps to local time)
+  // Process fuel mix data by hour (already normalized to local hour buckets)
   const fuelByHour: Record<number, HistoricalRecord> = {};
   if (fuelMixData && fuelMixData.length > 0) {
     fuelMixData.forEach(item => {
       const dateStr = typeof item.date === 'string' ? item.date : '';
-      if (dateStr) {
-        // Convert UTC timestamp to local hour for the region
-        const hour = convertUTCToLocalHour(dateStr, location || null);
+      const hourMatch = dateStr.match(/T(\d{2})/);
+      const hour = hourMatch ? parseInt(hourMatch[1], 10) : 0;
+      if (hour >= 0 && hour <= 24) {
         fuelByHour[hour] = item;
       }
     });
   }
 
-  // Process pricing data by hour (convert UTC timestamps to local time)
+  // Process pricing data by hour (already normalized to local hour buckets)
   const pricingByHour: Record<number, LMPDataPoint> = {};
   if (pricingData && pricingData.length > 0) {
     pricingData.forEach(point => {
-      if (point.time) {
-        // Convert UTC timestamp to local hour for the region
-        const hour = convertUTCToLocalHour(point.time, location || null);
+      const hourMatch = point.time.match(/T(\d{2})/);
+      const hour = hourMatch ? parseInt(hourMatch[1], 10) : 0;
+      if (hour >= 0 && hour <= 24) {
         pricingByHour[hour] = point;
       }
     });

@@ -35,11 +35,50 @@ export function getRegionTimezone(region: string | null): string {
 }
 
 /**
+ * Normalize EIA-style timestamps to a valid ISO-8601 UTC timestamp.
+ * Supports inputs like:
+ * - YYYY-MM-DDTHH
+ * - YYYY-MM-DDTHH:mm:ss
+ * - YYYY-MM-DDT24 (mapped to next day T00)
+ */
+function normalizeUTCTimestamp(input: string): Date | null {
+  if (!input) return null;
+
+  const trimmed = input.trim();
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})(?::(\d{2}))?(?::(\d{2}))?(Z)?$/);
+
+  if (match) {
+    const year = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10);
+    const day = parseInt(match[3], 10);
+    const hour = parseInt(match[4], 10);
+    const minute = parseInt(match[5] || "0", 10);
+    const second = parseInt(match[6] || "0", 10);
+
+    if (hour === 24 && minute === 0 && second === 0) {
+      const nextDay = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0));
+      return Number.isNaN(nextDay.getTime()) ? null : nextDay;
+    }
+
+    if (hour >= 0 && hour <= 23) {
+      // Treat no-suffix timestamps as UTC to match EIA hourly semantics.
+      const parsed = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+  }
+
+  // Fallback for already-qualified ISO strings with offsets.
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/**
  * Convert UTC timestamp to local hour for a given region
  */
 export function convertUTCToLocalHour(utcTimestamp: string, region: string | null): number {
   const timezone = getRegionTimezone(region);
-  const date = new Date(utcTimestamp);
+  const date = normalizeUTCTimestamp(utcTimestamp);
+  if (!date) return 0;
   
   // Format the date in the target timezone and extract the hour
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -57,7 +96,8 @@ export function convertUTCToLocalHour(utcTimestamp: string, region: string | nul
  */
 export function convertUTCToLocalDate(utcTimestamp: string, region: string | null): string {
   const timezone = getRegionTimezone(region);
-  const date = new Date(utcTimestamp);
+  const date = normalizeUTCTimestamp(utcTimestamp);
+  if (!date) return "";
   
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
