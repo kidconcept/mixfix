@@ -4,6 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * Theme System:
+ * These CSS custom properties serve as SSR/fallback defaults.
+ * On client-side, src/lib/themes.ts overrides these values via applyTheme().
+ * To add new colors, update both this file AND themes.ts.
+ */
 :root {
   /* Background Colors */
   --bg-primary: #faf9f3;
@@ -42,7 +48,7 @@
   --fuel-oil: #796869;
   --fuel-nuclear: #474040;
   /* Charging/Storage Load */
-  --fuel-charging: #e85d9c;
+  --fuel-charging: #ea6924;
   
   /* Pricing Colors */
   --price-lmp: #d44a0e;

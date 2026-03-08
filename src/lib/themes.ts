@@ -38,7 +38,8 @@ export const themes: Theme[] = [
       '--fuel-biomass': '#88b2b4',
       '--fuel-batteries': '#589797',
       '--fuel-imports': '#204d46',
-      '--fuel-other': '#2f6f68',
+      '--fuel-other': '#082926',
+      '--fuel-charging': '#ea6924',
       // Consumables: Muted greys
       '--fuel-coal': '#cec8c9',
       '--fuel-gas': '#ada6a6',
@@ -74,7 +75,8 @@ export const themes: Theme[] = [
       '--fuel-biomass': '#41ab5d',
       '--fuel-batteries': '#238b45',
       '--fuel-imports': '#006837',
-      '--fuel-other': '#3fa66f',
+      '--fuel-other': '#004d29',
+      '--fuel-charging': '#fb923c',
       // Consumables: Warm forest browns
       '--fuel-coal': '#a68862',
       '--fuel-gas': '#8b7355',
