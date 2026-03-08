@@ -613,9 +613,9 @@ export default function Home() {
                         color: 'var(--text-primary)'
                       }}
                     >
-                      <div className="font-semibold">{ba.code}</div>
+                      <div className="font-bold text-base">{ba.name}</div>
                       <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        {ba.name} {ba.hasPricing && '• Pricing Available'}
+                        {ba.code} {ba.hasPricing && '• Pricing Available'}
                       </div>
                     </button>
                   ))}

@@ -2,7 +2,7 @@
   "AECI": {
     "code": "AECI",
     "eiaCode": "AECI",
-    "name": "AECI",
+    "name": "Associated Electric Cooperative",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -10,7 +10,7 @@
   "AVA": {
     "code": "AVA",
     "eiaCode": "AVA",
-    "name": "AVA",
+    "name": "Avista Corporation",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -18,7 +18,7 @@
   "AVRN": {
     "code": "AVRN",
     "eiaCode": "AVRN",
-    "name": "AVRN",
+    "name": "Avangrid Renewables",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -26,7 +26,7 @@
   "AZPS": {
     "code": "AZPS",
     "eiaCode": "AZPS",
-    "name": "AZPS",
+    "name": "Arizona Public Service",
     "type": "Utility",
     "timezone": "America/Denver",
     "hasPricing": false
@@ -34,7 +34,7 @@
   "BANC": {
     "code": "BANC",
     "eiaCode": "BANC",
-    "name": "BANC",
+    "name": "Balancing Authority of Northern California",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -42,7 +42,7 @@
   "BPAT": {
     "code": "BPAT",
     "eiaCode": "BPAT",
-    "name": "BPAT",
+    "name": "Bonneville Power Administration",
     "type": "Utility",
     "timezone": "America/Los_Angeles",
     "hasPricing": false
@@ -50,7 +50,7 @@
   "CAL": {
     "code": "CAL",
     "eiaCode": "CAL",
-    "name": "CAL",
+    "name": "California (WECC Region)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -58,7 +58,7 @@
   "CAR": {
     "code": "CAR",
     "eiaCode": "CAR",
-    "name": "CAR",
+    "name": "Carolinas (SERC Region)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -66,7 +66,7 @@
   "CENT": {
     "code": "CENT",
     "eiaCode": "CENT",
-    "name": "CENT",
+    "name": "Central (MISO Region)",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -74,7 +74,7 @@
   "CHPD": {
     "code": "CHPD",
     "eiaCode": "CHPD",
-    "name": "CHPD",
+    "name": "Public Utility District No. 1 of Chelan County",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -82,7 +82,7 @@
   "CAISO": {
     "code": "CAISO",
     "eiaCode": "CISO",
-    "name": "CISO Independent System Operator",
+    "name": "California ISO",
     "type": "ISO",
     "timezone": "America/Los_Angeles",
     "hasPricing": true,
@@ -97,7 +97,7 @@
   "CPLE": {
     "code": "CPLE",
     "eiaCode": "CPLE",
-    "name": "CPLE",
+    "name": "Duke Energy Progress East",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -105,7 +105,7 @@
   "CPLW": {
     "code": "CPLW",
     "eiaCode": "CPLW",
-    "name": "CPLW",
+    "name": "Duke Energy Progress West",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -113,7 +113,7 @@
   "DEAA": {
     "code": "DEAA",
     "eiaCode": "DEAA",
-    "name": "DEAA",
+    "name": "Arlington Valley LLC",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -121,7 +121,7 @@
   "DOPD": {
     "code": "DOPD",
     "eiaCode": "DOPD",
-    "name": "DOPD",
+    "name": "Public Utility District No. 1 of Douglas County",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -129,7 +129,7 @@
   "DUK": {
     "code": "DUK",
     "eiaCode": "DUK",
-    "name": "DUK",
+    "name": "Duke Energy Carolinas",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -137,7 +137,7 @@
   "EPE": {
     "code": "EPE",
     "eiaCode": "EPE",
-    "name": "EPE",
+    "name": "El Paso Electric Company",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -145,7 +145,7 @@
   "ERCOT": {
     "code": "ERCOT",
     "eiaCode": "ERCO",
-    "name": "ERCO Independent System Operator",
+    "name": "Electric Reliability Council of Texas",
     "type": "ISO",
     "timezone": "America/Chicago",
     "hasPricing": true,
@@ -165,7 +165,7 @@
   "FLA": {
     "code": "FLA",
     "eiaCode": "FLA",
-    "name": "FLA",
+    "name": "Florida (FRCC Region)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -173,7 +173,7 @@
   "FMPP": {
     "code": "FMPP",
     "eiaCode": "FMPP",
-    "name": "FMPP",
+    "name": "Florida Municipal Power Pool",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -181,7 +181,7 @@
   "FPC": {
     "code": "FPC",
     "eiaCode": "FPC",
-    "name": "FPC",
+    "name": "Duke Energy Florida",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -189,7 +189,7 @@
   "FPL": {
     "code": "FPL",
     "eiaCode": "FPL",
-    "name": "FPL",
+    "name": "Florida Power & Light",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -197,7 +197,7 @@
   "GCPD": {
     "code": "GCPD",
     "eiaCode": "GCPD",
-    "name": "GCPD",
+    "name": "Public Utility District No. 2 of Grant County",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -205,7 +205,7 @@
   "GRID": {
     "code": "GRID",
     "eiaCode": "GRID",
-    "name": "GRID",
+    "name": "Gridforce Energy Management",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -213,7 +213,7 @@
   "GVL": {
     "code": "GVL",
     "eiaCode": "GVL",
-    "name": "GVL",
+    "name": "Gainesville Regional Utilities",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -221,7 +221,7 @@
   "GWA": {
     "code": "GWA",
     "eiaCode": "GWA",
-    "name": "GWA",
+    "name": "NaturEner Power Watch",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -229,7 +229,7 @@
   "HGMA": {
     "code": "HGMA",
     "eiaCode": "HGMA",
-    "name": "HGMA",
+    "name": "New Harquahala Generating Company",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -237,7 +237,7 @@
   "HST": {
     "code": "HST",
     "eiaCode": "HST",
-    "name": "HST",
+    "name": "City of Homestead",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -245,7 +245,7 @@
   "IID": {
     "code": "IID",
     "eiaCode": "IID",
-    "name": "IID",
+    "name": "Imperial Irrigation District",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -253,7 +253,7 @@
   "IPCO": {
     "code": "IPCO",
     "eiaCode": "IPCO",
-    "name": "IPCO",
+    "name": "Idaho Power Company",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -261,7 +261,7 @@
   "ISONE": {
     "code": "ISONE",
     "eiaCode": "ISNE",
-    "name": "ISNE Independent System Operator",
+    "name": "ISO New England",
     "type": "ISO",
     "timezone": "America/New_York",
     "hasPricing": true,
@@ -281,7 +281,7 @@
   "JEA": {
     "code": "JEA",
     "eiaCode": "JEA",
-    "name": "JEA",
+    "name": "JEA (Jacksonville Electric Authority)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -289,7 +289,7 @@
   "LDWP": {
     "code": "LDWP",
     "eiaCode": "LDWP",
-    "name": "LDWP",
+    "name": "Los Angeles Department of Water and Power",
     "type": "Utility",
     "timezone": "America/Los_Angeles",
     "hasPricing": false
@@ -297,7 +297,7 @@
   "LGEE": {
     "code": "LGEE",
     "eiaCode": "LGEE",
-    "name": "LGEE",
+    "name": "Louisville Gas and Electric Company",
     "type": "Utility",
     "timezone": "America/Chicago",
     "hasPricing": false
@@ -305,7 +305,7 @@
   "MIDA": {
     "code": "MIDA",
     "eiaCode": "MIDA",
-    "name": "MIDA",
+    "name": "Mid-Atlantic (RFC Region)",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -313,7 +313,7 @@
   "MIDW": {
     "code": "MIDW",
     "eiaCode": "MIDW",
-    "name": "MIDW",
+    "name": "Midwest (RFC Region)",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -321,7 +321,7 @@
   "MISO": {
     "code": "MISO",
     "eiaCode": "MISO",
-    "name": "MISO Independent System Operator",
+    "name": "Midcontinent ISO",
     "type": "ISO",
     "timezone": "America/Chicago",
     "hasPricing": true,
@@ -340,7 +340,7 @@
   "NE": {
     "code": "NE",
     "eiaCode": "NE",
-    "name": "NE",
+    "name": "Northeast (NPCC Region)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -348,7 +348,7 @@
   "NEVP": {
     "code": "NEVP",
     "eiaCode": "NEVP",
-    "name": "NEVP",
+    "name": "Nevada Power Company",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -356,7 +356,7 @@
   "NW": {
     "code": "NW",
     "eiaCode": "NW",
-    "name": "NW",
+    "name": "Northwest (WECC Region)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -364,7 +364,7 @@
   "NWMT": {
     "code": "NWMT",
     "eiaCode": "NWMT",
-    "name": "NWMT",
+    "name": "NorthWestern Energy",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -372,7 +372,7 @@
   "NY": {
     "code": "NY",
     "eiaCode": "NY",
-    "name": "NY",
+    "name": "New York (NPCC Region)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -380,7 +380,7 @@
   "NYISO": {
     "code": "NYISO",
     "eiaCode": "NYIS",
-    "name": "NYIS Independent System Operator",
+    "name": "New York ISO",
     "type": "ISO",
     "timezone": "America/New_York",
     "hasPricing": true,
@@ -407,7 +407,7 @@
   "PACE": {
     "code": "PACE",
     "eiaCode": "PACE",
-    "name": "PACE",
+    "name": "PacifiCorp East",
     "type": "Utility",
     "timezone": "America/Denver",
     "hasPricing": false
@@ -415,7 +415,7 @@
   "PACW": {
     "code": "PACW",
     "eiaCode": "PACW",
-    "name": "PACW",
+    "name": "PacifiCorp West",
     "type": "Utility",
     "timezone": "America/Los_Angeles",
     "hasPricing": false
@@ -423,7 +423,7 @@
   "PGE": {
     "code": "PGE",
     "eiaCode": "PGE",
-    "name": "PGE",
+    "name": "Portland General Electric",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -431,7 +431,7 @@
   "PJM": {
     "code": "PJM",
     "eiaCode": "PJM",
-    "name": "PJM Independent System Operator",
+    "name": "PJM Interconnection",
     "type": "ISO",
     "timezone": "America/New_York",
     "hasPricing": true,
@@ -462,7 +462,7 @@
   "PNM": {
     "code": "PNM",
     "eiaCode": "PNM",
-    "name": "PNM",
+    "name": "Public Service Company of New Mexico",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -470,7 +470,7 @@
   "PSCO": {
     "code": "PSCO",
     "eiaCode": "PSCO",
-    "name": "PSCO",
+    "name": "Public Service Company of Colorado",
     "type": "Utility",
     "timezone": "America/Denver",
     "hasPricing": false
@@ -478,7 +478,7 @@
   "PSEI": {
     "code": "PSEI",
     "eiaCode": "PSEI",
-    "name": "PSEI",
+    "name": "Puget Sound Energy",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -486,7 +486,7 @@
   "SC": {
     "code": "SC",
     "eiaCode": "SC",
-    "name": "SC",
+    "name": "South Carolina (SERC Region)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -494,7 +494,7 @@
   "SCEG": {
     "code": "SCEG",
     "eiaCode": "SCEG",
-    "name": "SCEG",
+    "name": "Dominion Energy South Carolina",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -502,7 +502,7 @@
   "SCL": {
     "code": "SCL",
     "eiaCode": "SCL",
-    "name": "SCL",
+    "name": "Seattle City Light",
     "type": "Regional",
     "timezone": "America/Los_Angeles",
     "hasPricing": false
@@ -510,7 +510,7 @@
   "SE": {
     "code": "SE",
     "eiaCode": "SE",
-    "name": "SE",
+    "name": "Southeast (SERC Region)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -518,7 +518,7 @@
   "SEC": {
     "code": "SEC",
     "eiaCode": "SEC",
-    "name": "SEC",
+    "name": "Seminole Electric Cooperative",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -526,7 +526,7 @@
   "SEPA": {
     "code": "SEPA",
     "eiaCode": "SEPA",
-    "name": "SEPA",
+    "name": "Southeastern Power Administration",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -534,7 +534,7 @@
   "SOCO": {
     "code": "SOCO",
     "eiaCode": "SOCO",
-    "name": "SOCO",
+    "name": "Southern Company Services",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -542,7 +542,7 @@
   "SPA": {
     "code": "SPA",
     "eiaCode": "SPA",
-    "name": "SPA",
+    "name": "Southwestern Power Administration",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -550,7 +550,7 @@
   "SRP": {
     "code": "SRP",
     "eiaCode": "SRP",
-    "name": "SRP",
+    "name": "Salt River Project",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -558,7 +558,7 @@
   "SW": {
     "code": "SW",
     "eiaCode": "SW",
-    "name": "SW",
+    "name": "Southwest (WECC Region)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -566,7 +566,7 @@
   "SPP": {
     "code": "SPP",
     "eiaCode": "SWPP",
-    "name": "SWPP Independent System Operator",
+    "name": "Southwest Power Pool",
     "type": "ISO",
     "timezone": "America/Chicago",
     "hasPricing": true,
@@ -581,7 +581,7 @@
   "TAL": {
     "code": "TAL",
     "eiaCode": "TAL",
-    "name": "TAL",
+    "name": "City of Tallahassee",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -589,7 +589,7 @@
   "TEC": {
     "code": "TEC",
     "eiaCode": "TEC",
-    "name": "TEC",
+    "name": "Tampa Electric Company",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -597,7 +597,7 @@
   "TEN": {
     "code": "TEN",
     "eiaCode": "TEN",
-    "name": "TEN",
+    "name": "Tennessee (SERC Region)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -605,7 +605,7 @@
   "TEPC": {
     "code": "TEPC",
     "eiaCode": "TEPC",
-    "name": "TEPC",
+    "name": "Tucson Electric Power Company",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -613,7 +613,7 @@
   "TEX": {
     "code": "TEX",
     "eiaCode": "TEX",
-    "name": "TEX",
+    "name": "Texas (ERCOT Region)",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -621,7 +621,7 @@
   "TIDC": {
     "code": "TIDC",
     "eiaCode": "TIDC",
-    "name": "TIDC",
+    "name": "Turlock Irrigation District",
     "type": "Utility",
     "timezone": "America/Los_Angeles",
     "hasPricing": false
@@ -629,7 +629,7 @@
   "TPWR": {
     "code": "TPWR",
     "eiaCode": "TPWR",
-    "name": "TPWR",
+    "name": "City of Tacoma Public Utilities",
     "type": "Utility",
     "timezone": "America/Denver",
     "hasPricing": false
@@ -637,7 +637,7 @@
   "TVA": {
     "code": "TVA",
     "eiaCode": "TVA",
-    "name": "TVA",
+    "name": "Tennessee Valley Authority",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -645,7 +645,7 @@
   "US48": {
     "code": "US48",
     "eiaCode": "US48",
-    "name": "US48",
+    "name": "United States Lower 48",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -653,7 +653,7 @@
   "WACM": {
     "code": "WACM",
     "eiaCode": "WACM",
-    "name": "WACM",
+    "name": "Western Area Power Administration - Rocky Mountain",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -661,7 +661,7 @@
   "WALC": {
     "code": "WALC",
     "eiaCode": "WALC",
-    "name": "WALC",
+    "name": "Western Area Power Administration - Desert Southwest",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -669,7 +669,7 @@
   "WAUW": {
     "code": "WAUW",
     "eiaCode": "WAUW",
-    "name": "WAUW",
+    "name": "Western Area Power Administration - Upper Great Plains West",
     "type": "Utility",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -677,7 +677,7 @@
   "WWA": {
     "code": "WWA",
     "eiaCode": "WWA",
-    "name": "WWA",
+    "name": "NaturEner Wind Watch",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
@@ -685,7 +685,7 @@
   "YAD": {
     "code": "YAD",
     "eiaCode": "YAD",
-    "name": "YAD",
+    "name": "Alcoa Power Generating - Yadkin Division",
     "type": "Regional",
     "timezone": "America/New_York",
     "hasPricing": false
