@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "fetch-respondents": "tsx scripts/fetch-eia-respondents.ts"
+    "fetch-respondents": "tsx scripts/fetch-eia-respondents.ts",
+    "fetch-zones": "tsx scripts/fetch-grid-status-zones.ts",
+    "populate-zones": "tsx scripts/populate-zones.ts"
   },
   "dependencies": {
     "next": "^16.1.6",

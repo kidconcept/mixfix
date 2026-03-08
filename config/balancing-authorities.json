@@ -87,7 +87,11 @@
     "timezone": "America/Los_Angeles",
     "hasPricing": true,
     "gridStatusDataset": "caiso_lmp_real_time_15_min",
-    "zones": [],
+    "zones": [
+      "TH_SP15_GEN-APND",
+      "TH_NP15_GEN-APND",
+      "TH_ZP26_GEN-APND"
+    ],
     "representativeZone": "SP15"
   },
   "CPLE": {
@@ -146,7 +150,16 @@
     "timezone": "America/Chicago",
     "hasPricing": true,
     "gridStatusDataset": "ercot_lmp_by_settlement_point",
-    "zones": [],
+    "zones": [
+      "LZ_AEN",
+      "LZ_CPS",
+      "LZ_HOUSTON",
+      "LZ_LCRA",
+      "LZ_NORTH",
+      "LZ_RAYBN",
+      "LZ_SOUTH",
+      "LZ_WEST"
+    ],
     "representativeZone": "HB_HOUSTON"
   },
   "FLA": {
@@ -253,7 +266,16 @@
     "timezone": "America/New_York",
     "hasPricing": true,
     "gridStatusDataset": "isone_lmp_real_time_hourly_final",
-    "zones": [],
+    "zones": [
+      ".Z.MAINE",
+      ".Z.NEWHAMPSHIRE",
+      ".Z.VERMONT",
+      ".Z.CONNECTICUT",
+      ".Z.RHODEISLAND",
+      ".Z.SEMASS",
+      ".Z.WCMASS",
+      ".Z.NEMASSBOST"
+    ],
     "representativeZone": ".H.INTERNAL_HUB"
   },
   "JEA": {
@@ -304,7 +326,15 @@
     "timezone": "America/Chicago",
     "hasPricing": true,
     "gridStatusDataset": "miso_lmp_real_time_hourly_final",
-    "zones": [],
+    "zones": [
+      "MISO.ILLINOIS.HUB",
+      "MISO.INDIANA.HUB",
+      "MISO.MICHIGAN.HUB",
+      "MISO.MINNESOTA.HUB",
+      "MISO.ARKANSAS.HUB",
+      "MISO.LOUISIANA.HUB",
+      "MISO.TEXAS.HUB"
+    ],
     "representativeZone": "MISO.ILLINOIS"
   },
   "NE": {
@@ -355,7 +385,23 @@
     "timezone": "America/New_York",
     "hasPricing": true,
     "gridStatusDataset": "nyiso_lmp_real_time_hourly",
-    "zones": [],
+    "zones": [
+      "CAPITL",
+      "CENTRL",
+      "DUNWOD",
+      "GENESE",
+      "H Q",
+      "HUD VL",
+      "LONGIL",
+      "MHK VL",
+      "MILLWD",
+      "N.Y.C.",
+      "NORTH",
+      "NPX",
+      "O H",
+      "PJM",
+      "WEST"
+    ],
     "representativeZone": "CENTRL"
   },
   "PACE": {
@@ -390,7 +436,27 @@
     "timezone": "America/New_York",
     "hasPricing": true,
     "gridStatusDataset": "pjm_lmp_real_time_hourly",
-    "zones": [],
+    "zones": [
+      "AEP",
+      "APS",
+      "ATSI",
+      "BGE",
+      "COMED",
+      "DAY",
+      "DEOK",
+      "DOM",
+      "DPL",
+      "DUQ",
+      "EKPC",
+      "JCPL",
+      "METED",
+      "PECO",
+      "PENELEC",
+      "PEPCO",
+      "PPL",
+      "PSEG",
+      "RECO"
+    ],
     "representativeZone": "AEP"
   },
   "PNM": {
@@ -505,7 +571,11 @@
     "timezone": "America/Chicago",
     "hasPricing": true,
     "gridStatusDataset": "spp_lmp_real_time_5_min",
-    "zones": [],
+    "zones": [
+      "SWPP_OKGE_HUB",
+      "SWPP_SPS_NRTH_HUB",
+      "SWPP_WR_HUB"
+    ],
     "representativeZone": "SPP.SPPSYSTEM"
   },
   "TAL": {
