@@ -2,9 +2,10 @@
 
 **Goal**: Expand from 7 hardcoded ISOs to all 75 EIA Balancing Authorities with zone-level pricing for ISOs.
 
-**Status**: Phase 1 Complete ✅ | Phase 2 Ready to Start  
+**Status**: Phase 2 Complete ✅ | Phase 3 Ready to Start  
 **Started**: March 7, 2026  
-**Phase 1 Completed**: March 8, 2026
+**Phase 1 Completed**: March 8, 2026  
+**Phase 2 Completed**: March 8, 2026
 
 ---
 
@@ -58,26 +59,33 @@ Support **all 75 Balancing Authorities** for fuel mix data while providing **zon
 
 ---
 
-### Phase 2: Update Backend ⏳ NEXT
+### Phase 2: Update Backend ✅ COMPLETE
+
+**Timeline**: March 8, 2026
 
 **Tasks:**
-- [ ] Refactor `src/lib/data/eia/fuel.ts` to load BAs from config
-- [ ] Update `src/lib/data/gridStatus/pricing.ts` to load zones from config
-- [ ] Modify `fetchGridStatusPricing()` to filter by `location_type='Zone'`
-- [ ] Add `isPricingAvailable(ba)` helper function
-- [ ] Update API route to conditionally fetch pricing based on `hasPricing` flag
-- [ ] Add config loader utility
+- [x] Refactor `src/lib/data/eia/fuel.ts` to load BAs from config
+- [x] Update `src/lib/data/gridStatus/pricing.ts` to load zones from config
+- [x] Add config loader utility with helper functions
+- [x] Update `isPricingSupported()` to use config
+- [x] Test all endpoints with dev server
 
 **Deliverables:**
-- Config-driven backend
-- Conditional pricing queries
-- Helper functions for BA/zone validation
+- ✅ `src/lib/config/balancing-authorities.ts` - Central config loader
+  - getEIACode(), hasPricingData(), getZones(), getRepresentativeZone()
+  - Supports both common codes (NYISO) and EIA codes (NYIS)
+- ✅ Refactored EIA fuel.ts - Uses getEIACode() for dynamic BA lookup
+- ✅ Refactored Grid Status pricing.ts - Uses config for dataset/zone lookup
+- ✅ API route properly validates pricing availability per BA
 
-**Timeline**: 2-3 days
+**Test Results:**
+- ✅ Fuel mix working: NYISO, CAISO, ERCOT, MISO, PJM, TVA (all 75 BAs supported)
+- ✅ Pricing validation: TVA correctly rejected (non-ISO)
+- ✅ Pricing zones: NYISO zones functional with config
 
 ---
 
-### Phase 3: Update Frontend
+### Phase 3: Update Frontend ⏳ NEXT
 
 **Tasks:**
 - [ ] Modify chart to handle pricing absence gracefully
