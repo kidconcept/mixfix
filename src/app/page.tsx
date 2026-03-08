@@ -597,6 +597,7 @@ export default function Home() {
                       key={ba.code}
                       onClick={() => {
                         setLocation(ba.code);
+                        setAddress(""); // Clear location field when BA changes
                         setBaSearchTerm("");
                         setShowBADropdown(false);
                         // Set default zone if BA has pricing

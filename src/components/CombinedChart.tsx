@@ -344,8 +344,13 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             stroke="var(--text-primary)"
             tick={{ fill: "var(--text-primary)" }}
             width={40}
+            domain={hasPricingData ? undefined : [0, 3]}
+            ticks={hasPricingData ? undefined : [0, 1, 2, 3]}
+            tickFormatter={(value) => hasPricingData ? value : ''}
             label={{ 
-              value: zoneName ? `${zoneName} in $/MWh` : "Pricing in $/MWh", 
+              value: hasPricingData 
+                ? (zoneName ? `${zoneName} in $/MWh` : "Pricing in $/MWh")
+                : "Pricing unavailable",
               angle: 0, 
               position: "insideTopLeft",
               offset: -23,
