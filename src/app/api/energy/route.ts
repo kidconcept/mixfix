@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { fetchEIAFuelMix, getMockEIAFuelMix } from "@/lib/data/eia/fuel";
+import { fetchEIAFuelMix } from "@/lib/data/eia/fuel";
 import { 
   fetchGridStatusPricing, 
-  isPricingSupported,
-  getMockPricingData 
+  isPricingSupported
 } from "@/lib/data/gridStatus/pricing";
 import { 
   validateFuelMixData, 
@@ -70,35 +69,19 @@ export async function GET(request: Request) {
       if (!result.success) {
         console.error("Pricing fetch error:", result.error);
         
-        // For development, return mock data on API errors
-        if (process.env.NODE_ENV === 'development') {
-          const mockData = getMockPricingData(date);
-          const quality = validatePricingData(mockData, date);
-          
-          return NextResponse.json({
-            lmp: mockData,
-            quality: {
-              ...quality,
-              warnings: [...quality.warnings, "Using mock data (API error)"],
-            },
-            meta: {
-              source: "mock",
-              view: "pricing",
-              location,
-              node,
-              date,
-              error: result.error.message,
-            },
-          });
-        }
+        // Check if it's a quota exceeded error
+        const isQuotaError = result.error.message?.includes('quota exceeded') || 
+                            result.error.message?.includes('limit reached');
         
         return NextResponse.json(
           { 
-            error: "Failed to fetch pricing data", 
+            error: isQuotaError ? "Grid Status API quota exceeded" : "Failed to fetch pricing data",
             details: result.error.message,
             type: result.error.type,
+            api: "Grid Status",
+            quotaExceeded: isQuotaError,
           },
-          { status: 500 }
+          { status: isQuotaError ? 429 : 500 }
         );
       }
 
@@ -140,34 +123,19 @@ export async function GET(request: Request) {
     if (!result.success) {
       console.error("EIA fuel mix fetch error:", result.error);
       
-      // For development, return mock data on API errors
-      if (process.env.NODE_ENV === 'development') {
-        const mockData = getMockEIAFuelMix(date);
-        const quality = validateFuelMixData(mockData, date);
-        
-        return NextResponse.json({
-          hourly: mockData,
-          quality: {
-            ...quality,
-            warnings: [...quality.warnings, "Using mock data (API error)"],
-          },
-          meta: {
-            source: "mock",
-            view: "fuel-mix",
-            location,
-            date,
-            error: result.error.message,
-          },
-        });
-      }
-
+      // Check if it's a rate limit error
+      const isRateLimitError = result.error.message?.includes('rate limit') || 
+                               result.error.message?.includes('Too many requests');
+      
       return NextResponse.json(
         { 
-          error: "Failed to fetch fuel mix data", 
+          error: isRateLimitError ? "EIA API rate limit exceeded" : "Failed to fetch fuel mix data",
           details: result.error.message,
           type: result.error.type,
+          api: "EIA",
+          rateLimitExceeded: isRateLimitError,
         },
-        { status: 500 }
+        { status: isRateLimitError ? 429 : 500 }
       );
     }
 

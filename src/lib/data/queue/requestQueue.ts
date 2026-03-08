@@ -148,20 +148,26 @@ export class APIRequestQueue {
     // HTTP errors
     if (typeof error === 'object' && error !== null) {
       const statusCode = (error as any).statusCode || (error as any).status;
+      const errorMessage = error instanceof Error ? error.message : String(error);
       
+      // Check for quota exceeded (not retryable) vs rate limit (retryable)
       if (statusCode === 429) {
+        const isQuotaExceeded = (error as any).quotaExceeded || 
+                               errorMessage.toLowerCase().includes('quota') ||
+                               errorMessage.toLowerCase().includes('usage:');
+        
         return {
           type: 'rate-limit',
-          message: 'Rate limit exceeded',
+          message: errorMessage || 'Rate limit exceeded',
           statusCode,
-          retryable: true,
+          retryable: !isQuotaExceeded, // Don't retry quota errors
         };
       }
 
       if (statusCode === 404) {
         return {
           type: 'not-found',
-          message: 'Resource not found',
+          message: errorMessage || 'Resource not found',
           statusCode,
           retryable: false,
         };
@@ -170,7 +176,7 @@ export class APIRequestQueue {
       if (statusCode >= 500) {
         return {
           type: 'server-error',
-          message: `Server error: ${statusCode}`,
+          message: errorMessage || `Server error: ${statusCode}`,
           statusCode,
           retryable: true,
         };
@@ -179,7 +185,7 @@ export class APIRequestQueue {
       if (statusCode >= 400) {
         return {
           type: 'validation',
-          message: `Client error: ${statusCode}`,
+          message: errorMessage || `Client error: ${statusCode}`,
           statusCode,
           retryable: false,
         };

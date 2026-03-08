@@ -1,12 +1,8 @@
 import { EnergySource, HistoricalRecord } from "@/types/energy";
-import { SOURCE_COLORS } from "./theme";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-// Re-export SOURCE_COLORS from centralized theme
-export { SOURCE_COLORS };
 
 const EIA_BASE = "https://api.eia.gov/v2";
 const EIA_RTO_ENDPOINT = `${EIA_BASE}/electricity/rto/fuel-type-data/data/`;

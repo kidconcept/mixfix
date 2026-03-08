@@ -117,14 +117,41 @@ export async function fetchGridStatusPricing(
         },
       });
       
+      const json: any = await response.json();
+      
+      // Check for quota/limit errors in response body (Grid Status returns these as 200 with detail field)
+      if (json.detail) {
+        const detail = json.detail.toLowerCase();
+        if (detail.includes('limit reached') || detail.includes('quota') || detail.includes('usage')) {
+          const error: any = new Error(`Grid Status API quota exceeded: ${json.detail}`);
+          error.statusCode = 429;
+          error.quotaExceeded = true;
+          throw error;
+        }
+        // Other detail messages might be errors too
+        if (!response.ok) {
+          const error: any = new Error(`Grid Status API error: ${json.detail}`);
+          error.statusCode = response.status;
+          throw error;
+        }
+      }
+      
       if (!response.ok) {
         const error: any = new Error(`Grid Status API error: ${response.status} ${response.statusText}`);
         error.statusCode = response.status;
         throw error;
       }
       
-      const json: GridStatusLMPResponse = await response.json();
-      return json.data ?? [];
+      const typedJson = json as GridStatusLMPResponse;
+      
+      // Check if we actually have data
+      if (!typedJson.data || !Array.isArray(typedJson.data)) {
+        const error: any = new Error('Grid Status API returned no data');
+        error.statusCode = 500;
+        throw error;
+      }
+      
+      return typedJson.data;
     },
     {
       timeout: 45000,      // 45 second timeout (Grid Status can be slow)
@@ -180,10 +207,10 @@ function transformHourlyData(
 ): LMPDataPoint[] {
   const hourlyMap = new Map<number, GridStatusLMPRow>();
   
-  // Calculate next day for hour 24
-  const nextDay = new Date(date);
-  nextDay.setDate(nextDay.getDate() + 1);
-  const nextDayStr = nextDay.toISOString().split('T')[0];
+  // Calculate next day for hour 24 (simple string arithmetic to avoid timezone issues)
+  const [year, month, day] = date.split('-').map(Number);
+  const nextDate = new Date(year, month - 1, day + 1);
+  const nextDayStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
 
   for (const row of rows) {
     const localDate = convertUTCToLocalDate(row.interval_start_utc, iso);
@@ -235,10 +262,10 @@ function transformSubHourlyData(
 ): LMPDataPoint[] {
   const hourlyMap = new Map<number, GridStatusLMPRow[]>();
   
-  // Calculate next day for hour 24
-  const nextDay = new Date(date);
-  nextDay.setDate(nextDay.getDate() + 1);
-  const nextDayStr = nextDay.toISOString().split('T')[0];
+  // Calculate next day for hour 24 (simple string arithmetic to avoid timezone issues)
+  const [year, month, day] = date.split('-').map(Number);
+  const nextDate = new Date(year, month - 1, day + 1);
+  const nextDayStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
 
   // Group by local hour
   for (const row of rows) {
@@ -289,33 +316,4 @@ function transformSubHourlyData(
   }
 
   return records;
-}
-
-/**
- * Get mock pricing data for development/testing
- */
-export function getMockPricingData(date: string): LMPDataPoint[] {
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-  return hours.map(hour => {
-    const timeStr = `${date}T${String(hour).padStart(2, '0')}:00:00`;
-    
-    // Simulate typical daily pricing pattern
-    // Higher during peak hours (8am-8pm), lower at night
-    const isPeak = hour >= 8 && hour <= 20;
-    const baseLMP = isPeak ? 45 : 25;
-    const variation = Math.random() * 20 - 10;
-    
-    const lmp = baseLMP + variation;
-    const energy = lmp * 0.85; // Energy is typically ~85% of LMP
-    const congestion = Math.random() * 5 - 2.5; // Small congestion component
-    const loss = lmp - energy - congestion; // Loss is the remainder
-    
-    return {
-      time: timeStr,
-      lmp: Number(lmp.toFixed(2)),
-      energy: Number(energy.toFixed(2)),
-      congestion: Number(congestion.toFixed(2)),
-      loss: Number(loss.toFixed(2)),
-    };
-  });
 }

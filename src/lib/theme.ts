@@ -66,7 +66,7 @@ export const lightTheme: ColorTheme = {
     secondary: '#3e3e3e',  // Dark gray text
   },
   status: {
-    alert: '#fb4635',        // Coral red for alerts
+    alert: '#fb6d35',        // Coral red for alerts
     message: '#28cf7e',        // Mint green for messages
   },
   interactive: {

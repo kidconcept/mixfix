@@ -12,7 +12,6 @@ import {
   ResponsiveContainer,
   TooltipProps,
 } from "recharts";
-import { SOURCE_COLORS, PRICING_COLORS } from "@/lib/theme";
 import { HistoricalRecord, LMPDataPoint } from "@/types/energy";
 import { getTimezoneAbbreviation } from "@/lib/timezone";
 
@@ -23,6 +22,28 @@ interface CombinedChartProps {
 }
 
 type DataKey = 'solar' | 'wind' | 'hydro' | 'geothermal' | 'biomass' | 'batteries' | 'imports' | 'other' | 'coal' | 'gas' | 'oil' | 'nuclear' | 'lmp' | 'energy' | 'congestion' | 'loss';
+
+// Map data keys to CSS variable names
+const COLOR_VARS: Record<DataKey, string> = {
+  // Fuel mix
+  solar: 'var(--fuel-solar)',
+  wind: 'var(--fuel-wind)',
+  hydro: 'var(--fuel-hydro)',
+  geothermal: 'var(--fuel-geothermal)',
+  biomass: 'var(--fuel-biomass)',
+  batteries: 'var(--fuel-batteries)',
+  imports: 'var(--fuel-imports)',
+  other: 'var(--fuel-other)',
+  coal: 'var(--fuel-coal)',
+  gas: 'var(--fuel-gas)',
+  oil: 'var(--fuel-oil)',
+  nuclear: 'var(--fuel-nuclear)',
+  // Pricing
+  lmp: 'var(--price-lmp)',
+  energy: 'var(--price-energy)',
+  congestion: 'var(--price-congestion)',
+  loss: 'var(--price-loss)',
+};
 
 interface LegendGroup {
   name: string;
@@ -335,8 +356,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="coal"
             stackId="1"
-            stroke={SOURCE_COLORS.coal}
-            fill={SOURCE_COLORS.coal}
+            stroke="var(--fuel-coal)"
+            fill="var(--fuel-coal)"
             fillOpacity={0.95}
             name="Coal"
             hide={!visibility.coal}
@@ -346,8 +367,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="gas"
             stackId="1"
-            stroke={SOURCE_COLORS.gas}
-            fill={SOURCE_COLORS.gas}
+            stroke="var(--fuel-gas)"
+            fill="var(--fuel-gas)"
             fillOpacity={0.95}
             name="Gas"
             hide={!visibility.gas}
@@ -357,8 +378,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="oil"
             stackId="1"
-            stroke={SOURCE_COLORS.oil}
-            fill={SOURCE_COLORS.oil}
+            stroke="var(--fuel-oil)"
+            fill="var(--fuel-oil)"
             fillOpacity={0.95}
             name="Oil"
             hide={!visibility.oil}
@@ -368,8 +389,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="nuclear"
             stackId="1"
-            stroke={SOURCE_COLORS.nuclear}
-            fill={SOURCE_COLORS.nuclear}
+            stroke="var(--fuel-nuclear)"
+            fill="var(--fuel-nuclear)"
             fillOpacity={0.95}
             name="Nuclear"
             hide={!visibility.nuclear}
@@ -381,8 +402,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="solar"
             stackId="1"
-            stroke={SOURCE_COLORS.solar}
-            fill={SOURCE_COLORS.solar}
+            stroke="var(--fuel-solar)"
+            fill="var(--fuel-solar)"
             fillOpacity={0.95}
             name="Solar"
             hide={!visibility.solar}
@@ -392,8 +413,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="wind"
             stackId="1"
-            stroke={SOURCE_COLORS.wind}
-            fill={SOURCE_COLORS.wind}
+            stroke="var(--fuel-wind)"
+            fill="var(--fuel-wind)"
             fillOpacity={0.95}
             name="Wind"
             hide={!visibility.wind}
@@ -403,8 +424,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="hydro"
             stackId="1"
-            stroke={SOURCE_COLORS.hydro}
-            fill={SOURCE_COLORS.hydro}
+            stroke="var(--fuel-hydro)"
+            fill="var(--fuel-hydro)"
             fillOpacity={0.95}
             name="Hydro"
             hide={!visibility.hydro}
@@ -414,8 +435,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="geothermal"
             stackId="1"
-            stroke={SOURCE_COLORS.geothermal}
-            fill={SOURCE_COLORS.geothermal}
+            stroke="var(--fuel-geothermal)"
+            fill="var(--fuel-geothermal)"
             fillOpacity={0.95}
             name="Geothermal"
             hide={!visibility.geothermal}
@@ -425,8 +446,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="biomass"
             stackId="1"
-            stroke={SOURCE_COLORS.biomass}
-            fill={SOURCE_COLORS.biomass}
+            stroke="var(--fuel-biomass)"
+            fill="var(--fuel-biomass)"
             fillOpacity={0.95}
             name="Biomass"
             hide={!visibility.biomass}
@@ -436,8 +457,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="batteries"
             stackId="1"
-            stroke={SOURCE_COLORS.batteries}
-            fill={SOURCE_COLORS.batteries}
+            stroke="var(--fuel-batteries)"
+            fill="var(--fuel-batteries)"
             fillOpacity={0.95}
             name="Batteries"
             hide={!visibility.batteries}
@@ -447,8 +468,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="imports"
             stackId="1"
-            stroke={SOURCE_COLORS.imports}
-            fill={SOURCE_COLORS.imports}
+            stroke="var(--fuel-imports)"
+            fill="var(--fuel-imports)"
             fillOpacity={0.95}
             name="Imports"
             hide={!visibility.imports}
@@ -458,8 +479,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
             type="monotone"
             dataKey="other"
             stackId="1"
-            stroke={SOURCE_COLORS.other}
-            fill={SOURCE_COLORS.other}
+            stroke="var(--fuel-other)"
+            fill="var(--fuel-other)"
             fillOpacity={0.95}
             name="Other"
             hide={!visibility.other}
@@ -582,9 +603,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
               <div className="flex flex-col gap-1">
                 {itemsWithData.map((item) => {
                   const isVisible = visibility[item];
-                  const color = item in SOURCE_COLORS 
-                    ? SOURCE_COLORS[item as keyof typeof SOURCE_COLORS]
-                    : PRICING_COLORS[item as keyof typeof PRICING_COLORS];
+                  const color = COLOR_VARS[item];
                   const label = item.charAt(0).toUpperCase() + item.slice(1);
                   
                   return (

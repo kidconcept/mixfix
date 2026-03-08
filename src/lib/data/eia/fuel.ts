@@ -82,6 +82,16 @@ export async function fetchEIAFuelMix(
       const response = await fetch(url);
       
       if (!response.ok) {
+        const json: any = await response.json().catch(() => ({}));
+        
+        // Check for rate limit error (HTTP 429 or error message)
+        if (response.status === 429 || json.error?.message?.toLowerCase().includes('rate limit')) {
+          const error: any = new Error(`EIA API rate limit exceeded: ${json.error?.message || 'Too many requests'}`);
+          error.statusCode = 429;
+          error.rateLimitExceeded = true;
+          throw error;
+        }
+        
         const error: any = new Error(`EIA API error: ${response.status} ${response.statusText}`);
         error.statusCode = response.status;
         throw error;
@@ -132,9 +142,9 @@ function buildParams(apiKey: string, location: string, date: string): URLSearchP
   
   // Time range: requested day plus hour 0 of next day (00:00 to next day 00:00)
   // This gives us 25 hours to show the daily cycle completing
-  const nextDay = new Date(date);
-  nextDay.setDate(nextDay.getDate() + 1);
-  const nextDayStr = nextDay.toISOString().split('T')[0];
+  const [year, month, day] = date.split('-').map(Number);
+  const nextDate = new Date(year, month - 1, day + 1);
+  const nextDayStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
   
   params.set("start", `${date}T00`);
   params.set("end", `${nextDayStr}T00`);
@@ -243,27 +253,4 @@ function transformEIAData(rows: EIARow[], date: string): HistoricalRecord[] {
   }
 
   return records;
-}
-
-/**
- * Get mock data for development/testing when EIA API is unavailable
- */
-export function getMockEIAFuelMix(date: string): HistoricalRecord[] {
-  const hours = Array.from({ length: 24 }, (_, i) => i);
-  return hours.map(hour => {
-    const timestamp = `${date}T${String(hour).padStart(2, '0')}:00:00`;
-    const solarFactor = Math.max(0, Math.sin((hour - 6) * Math.PI / 12));
-    
-    return {
-      date: timestamp,
-      solar: solarFactor * 150,
-      wind: 180 + Math.random() * 40 - 20,
-      hydro: 110,
-      nuclear: 85,
-      gas: 200 - solarFactor * 50,
-      coal: 120,
-      oil: 17,
-      other: 9,
-    };
-  });
 }

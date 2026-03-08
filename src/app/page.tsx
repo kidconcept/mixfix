@@ -37,7 +37,10 @@ const fetcher = async (url: string) => {
 function getYesterday(): string {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  return yesterday.toISOString().split("T")[0];
+  const year = yesterday.getFullYear();
+  const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+  const day = String(yesterday.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export default function Home() {
@@ -49,6 +52,8 @@ export default function Home() {
   const [zone, setZone] = useState<string>("CAPITL");
   const [showBADropdown, setShowBADropdown] = useState(false);
   const [baSearchTerm, setBaSearchTerm] = useState("");
+  const [showZoneDropdown, setShowZoneDropdown] = useState(false);
+  const [zoneSearchTerm, setZoneSearchTerm] = useState("");
   const [address, setAddress] = useState<string>("");
   const [isLocating, setIsLocating] = useState(false);
   const [geocodeMessage, setGeocodeMessage] = useState<string>("");
@@ -58,11 +63,17 @@ export default function Home() {
   const [dateHovered, setDateHovered] = useState(false);
   const [addressFocused, setAddressFocused] = useState(false);
   const [addressHovered, setAddressHovered] = useState(false);
+  const [baFocused, setBaFocused] = useState(false);
+  const [baHovered, setBaHovered] = useState(false);
+  const [zoneFocused, setZoneFocused] = useState(false);
+  const [zoneHovered, setZoneHovered] = useState(false);
   const [fuelMixRetryCount, setFuelMixRetryCount] = useState(0);
   const [pricingRetryCount, setPricingRetryCount] = useState(0);
   
   const dateInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
+  const baInputRef = useRef<HTMLInputElement>(null);
+  const zoneInputRef = useRef<HTMLInputElement>(null);
 
   const handleLocate = async () => {
     setIsLocating(true);
@@ -213,15 +224,21 @@ export default function Home() {
   // Retry logic for fuel mix data with exponential backoff
   useEffect(() => {
     if (fuelMixError && !fuelMixData && fuelMixRetryCount < 3) {
-      // Check if it's a rate limit error
-      const isRateLimited = fuelMixError.message?.includes('Rate limit');
-      // For rate limits, use longer delays: 15s, 30s, 60s
+      // Don't retry if it's a rate limit or quota error - these won't be fixed by retrying
+      const isRateOrQuotaLimit = fuelMixError.message?.includes('rate limit') || 
+                                 fuelMixError.message?.includes('Rate limit') ||
+                                 fuelMixError.message?.includes('quota exceeded');
+      
+      if (isRateOrQuotaLimit) {
+        console.log('Skipping retry for EIA rate/quota limit error');
+        return;
+      }
+      
       // For other errors, use exponential backoff: 2s, 4s, 8s
-      const baseDelay = isRateLimited ? 15000 : 2000;
-      const delay = Math.pow(2, fuelMixRetryCount) * baseDelay;
+      const delay = Math.pow(2, fuelMixRetryCount) * 2000;
       
       const retryTimer = setTimeout(() => {
-        console.log(`Retrying fuel mix data (attempt ${fuelMixRetryCount + 1}/3 after ${delay}ms, rate limited: ${isRateLimited})...`);
+        console.log(`Retrying fuel mix data (attempt ${fuelMixRetryCount + 1}/3 after ${delay}ms)...`);
         setFuelMixRetryCount(prev => prev + 1);
         // Force refetch by updating the key
         setFuelMixKey(
@@ -236,15 +253,22 @@ export default function Home() {
   // Retry logic for pricing data with exponential backoff
   useEffect(() => {
     if (pricingError && !pricingData && pricingRetryCount < 3) {
-      // Check if it's a rate limit error
-      const isRateLimited = pricingError.message?.includes('Rate limit');
-      // For rate limits, use longer delays: 15s, 30s, 60s
+      // Don't retry if it's a rate limit or quota error - these won't be fixed by retrying
+      const isRateOrQuotaLimit = pricingError.message?.includes('rate limit') || 
+                                 pricingError.message?.includes('Rate limit') ||
+                                 pricingError.message?.includes('quota exceeded') ||
+                                 pricingError.message?.includes('limit reached');
+      
+      if (isRateOrQuotaLimit) {
+        console.log('Skipping retry for Grid Status rate/quota limit error');
+        return;
+      }
+      
       // For other errors, use exponential backoff: 2s, 4s, 8s
-      const baseDelay = isRateLimited ? 15000 : 2000;
-      const delay = Math.pow(2, pricingRetryCount) * baseDelay;
+      const delay = Math.pow(2, pricingRetryCount) * 2000;
       
       const retryTimer = setTimeout(() => {
-        console.log(`Retrying pricing data (attempt ${pricingRetryCount + 1}/3 after ${delay}ms, rate limited: ${isRateLimited})...`);
+        console.log(`Retrying pricing data (attempt ${pricingRetryCount + 1}/3 after ${delay}ms)...`);
         setPricingRetryCount(prev => prev + 1);
         // Force refetch by updating the key
         if (hasPricingData(location)) {
@@ -276,34 +300,26 @@ export default function Home() {
   // Check if current BA supports pricing
   const supportsPricing = hasPricingData(location);
   
-  // Data availability
+  // Data availability - show chart if we have either pricing or fuel mix data
   const hasPricingDataLoaded = !!pricingData;
   const hasFuelMixData = !!fuelMixData;
-  const hasAnyData = supportsPricing ? hasPricingDataLoaded : hasFuelMixData; // Chart requires pricing for ISOs, fuel mix for others
+  const hasAnyData = hasPricingDataLoaded || hasFuelMixData; // Show chart with any available data
 
   return (
     <SWRConfig value={swrConfig}>
       <main className="min-h-screen p-6 md:p-10">
-        {/* Date and Address Fields - Inline Edit Style */}
-        <div className="mb-4 flex flex-wrap gap-6 items-center">
+        {/* All Fields - Inline Edit Style */}
+        <div className="mb-4 flex flex-wrap gap-6 items-baseline">
           {/* Brand */}
-          <div className="font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>mixfix</div>
+          <div className="flex flex-col">
+            <div className="text-xs font-semibold px-3 invisible">_</div>
+            <div className="font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>mixfix</div>
+          </div>
           
           {/* Date Field */}
-          <div className="flex items-center gap-0">
-            <button
-              onClick={() => {
-                dateInputRef.current?.focus();
-                dateInputRef.current?.showPicker?.();
-              }}
-              className="transition-colors flex-shrink-0"
-              style={{ color: 'var(--interactive-primary)' }}
-              tabIndex={-1}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </button>
+          <div className="flex flex-col">
+            <label className="text-xs font-semibold px-3" style={{ color: 'var(--text-secondary)' }}>Date</label>
+            <div className="flex items-center gap-0">
             <div 
               className="relative inline-flex items-center border rounded-lg px-3 transition-all" 
               style={{ borderColor: (dateFocused || dateHovered) ? 'var(--active)' : 'transparent', height: '38px' }}
@@ -334,35 +350,14 @@ export default function Home() {
                 style={{ color: 'var(--text-primary)', height: '26px', fieldSizing: 'content' }}
               />
             </div>
-            {dateFocused && (
-              <button
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  dateInputRef.current?.blur();
-                }}
-                className="transition-colors flex-shrink-0"
-                style={{ color: 'var(--interactive-primary)', paddingLeft: '4px' }}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-              </button>
-            )}
+            </div>
           </div>
 
           {/* Address Field */}
-          <div className="relative">
+          <div className="flex flex-col">
+            <label className="text-xs font-semibold px-3" style={{ color: 'var(--text-secondary)' }}>Location</label>
+            <div className="relative">
             <div className="flex items-center gap-0">
-              <button
-                onClick={() => addressInputRef.current?.focus()}
-                className="transition-colors flex-shrink-0"
-                style={{ color: 'var(--interactive-primary)' }}
-                tabIndex={-1}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </button>
               <div 
                 className="relative inline-flex items-center border rounded-lg px-3 transition-all" 
                 style={{ borderColor: (addressFocused || addressHovered) ? 'var(--active)' : 'transparent', height: '38px' }}
@@ -392,125 +387,181 @@ export default function Home() {
                   style={{ color: 'var(--text-primary)', height: '26px', fieldSizing: 'content' }}
                 />
               </div>
-              {addressFocused && (
-                <button
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    handleAddressChange();
-                    addressInputRef.current?.blur();
-                  }}
-                  disabled={isLocating}
-                  className="transition-colors disabled:opacity-50 flex-shrink-0"
-                  style={{ color: 'var(--interactive-primary)', paddingLeft: '4px' }}
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                </button>
-              )}
+            </div>
             </div>
           </div>
-        </div>
 
-        {/* ISO/Zone Form Controls */}
-        <div className="flex flex-wrap gap-3 items-end mb-6">
-          <div className="flex-1 min-w-[200px] relative">
-            <label
-              htmlFor="location"
-              className="block text-sm font-semibold mb-2"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              Balancing Authority:
-            </label>
+          {/* BA Field */}
+          <div className="flex flex-col">
+            <label className="text-xs font-semibold px-3" style={{ color: 'var(--text-secondary)' }}>BA</label>
             <div className="relative">
-              <input
-                id="location"
-                type="text"
-                value={baSearchTerm || location}
-                onChange={(e) => {
-                  setBaSearchTerm(e.target.value);
-                  setShowBADropdown(true);
-                }}
-                onFocus={() => setShowBADropdown(true)}
-                onBlur={() => setTimeout(() => setShowBADropdown(false), 200)}
-                placeholder="Search or select BA..."
-                className="rounded-lg px-4 py-2.5 w-full focus:outline-none focus:ring-2 focus:border-transparent"
+            <div className="flex items-center gap-0">
+              <div 
+                className="relative inline-flex items-center border rounded-lg px-3 transition-all" 
+                style={{ borderColor: (baFocused || baHovered) ? 'var(--active)' : 'transparent', height: '38px' }}
+                onMouseEnter={() => setBaHovered(true)}
+                onMouseLeave={() => setBaHovered(false)}
+              >
+                <input
+                  ref={baInputRef}
+                  type="text"
+                  value={baSearchTerm || location}
+                  onChange={(e) => {
+                    setBaSearchTerm(e.target.value);
+                    setShowBADropdown(true);
+                  }}
+                  onFocus={(e) => {
+                    setBaFocused(true);
+                    setShowBADropdown(true);
+                    e.target.select();
+                  }}
+                  onBlur={() => {
+                    setBaFocused(false);
+                    setTimeout(() => setShowBADropdown(false), 200);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.currentTarget.blur();
+                      handleUpdate();
+                    }
+                  }}
+                  placeholder="BA"
+                  className="font-medium focus:outline-none bg-transparent"
+                  style={{ color: 'var(--text-primary)', height: '26px', fieldSizing: 'content', minWidth: '80px' }}
+                />
+              </div>
+            </div>
+            {showBADropdown && (
+              <div 
+                className="absolute z-10 mt-1 rounded-lg shadow-lg max-h-60 overflow-y-auto"
                 style={{ 
-                  backgroundColor: 'var(--bg-secondary)', 
+                  backgroundColor: 'var(--bg-secondary)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderColor: 'var(--text-secondary)',
-                  color: 'var(--text-primary)'
+                  minWidth: '300px'
                 }}
-              />
-              {showBADropdown && (
-                <div 
-                  className="absolute z-10 w-full mt-1 rounded-lg shadow-lg max-h-60 overflow-y-auto"
-                  style={{ 
-                    backgroundColor: 'var(--bg-secondary)',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: 'var(--text-secondary)'
-                  }}
-                >
-                  {allBAs
-                    .filter(ba => 
-                      !baSearchTerm || 
-                      ba.code.toLowerCase().includes(baSearchTerm.toLowerCase()) ||
-                      ba.name.toLowerCase().includes(baSearchTerm.toLowerCase())
-                    )
-                    .map(ba => (
-                      <button
-                        key={ba.code}
-                        onClick={() => {
-                          setLocation(ba.code);
-                          setBaSearchTerm("");
-                          setShowBADropdown(false);
-                          // Set default zone if BA has pricing
-                          if (ba.hasPricing && ba.representativeZone) {
-                            setZone(ba.representativeZone);
-                          }
-                        }}
-                        className="w-full text-left px-4 py-2 hover:bg-opacity-80 transition-colors"
-                        style={{ 
-                          backgroundColor: location === ba.code ? 'var(--active)' : 'transparent',
-                          color: 'var(--text-primary)'
-                        }}
-                      >
-                        <div className="font-semibold">{ba.code}</div>
-                        <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                          {ba.name} {ba.hasPricing && '• Pricing Available'}
-                        </div>
-                      </button>
-                    ))}
-                </div>
-              )}
+              >
+                {allBAs
+                  .filter(ba => 
+                    !baSearchTerm || 
+                    ba.code.toLowerCase().includes(baSearchTerm.toLowerCase()) ||
+                    ba.name.toLowerCase().includes(baSearchTerm.toLowerCase())
+                  )
+                  .map(ba => (
+                    <button
+                      key={ba.code}
+                      onClick={() => {
+                        setLocation(ba.code);
+                        setBaSearchTerm("");
+                        setShowBADropdown(false);
+                        // Set default zone if BA has pricing
+                        if (ba.hasPricing && ba.representativeZone) {
+                          setZone(ba.representativeZone);
+                        }
+                        setTimeout(() => handleUpdate(), 100);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-opacity-80 transition-colors"
+                      style={{ 
+                        backgroundColor: location === ba.code ? 'var(--active)' : 'transparent',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <div className="font-semibold">{ba.code}</div>
+                      <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        {ba.name} {ba.hasPricing && '• Pricing Available'}
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            )}
             </div>
           </div>
-          <div className="flex-1 min-w-[200px]">
-            <label
-              htmlFor="zone"
-              className="block text-sm font-semibold mb-2"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              Zone {!supportsPricing && <span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>(Pricing not available)</span>}:
-            </label>
-            <input
-              id="zone"
-              type="text"
-              value={zone}
-              onChange={(e) => setZone(e.target.value.toUpperCase())}
-              placeholder={supportsPricing ? "e.g., CAPITL, CENTRL" : "N/A"}
-              disabled={!supportsPricing}
-              className="rounded-lg px-4 py-2.5 w-full focus:outline-none focus:ring-2 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ 
-                backgroundColor: 'var(--bg-secondary)', 
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                borderColor: 'var(--text-secondary)',
-                color: 'var(--text-primary)'
-              }}
-            />
+
+          {/* Zone Field */}
+          <div className="flex flex-col">
+            <label className="text-xs font-semibold px-3" style={{ color: 'var(--text-secondary)', opacity: supportsPricing ? 1 : 0.5 }}>Zone</label>
+            <div className="relative">
+            <div className="flex items-center gap-0">
+              <div 
+                className="relative inline-flex items-center border rounded-lg px-3 transition-all" 
+                style={{ 
+                  borderColor: (zoneFocused || zoneHovered) && supportsPricing ? 'var(--active)' : 'transparent', 
+                  height: '38px',
+                  opacity: supportsPricing ? 1 : 0.5
+                }}
+                onMouseEnter={() => setZoneHovered(true)}
+                onMouseLeave={() => setZoneHovered(false)}
+              >
+                <input
+                  ref={zoneInputRef}
+                  type="text"
+                  value={zoneSearchTerm || zone}
+                  onChange={(e) => {
+                    setZoneSearchTerm(e.target.value);
+                    setShowZoneDropdown(true);
+                  }}
+                  onFocus={(e) => {
+                    setZoneFocused(true);
+                    if (supportsPricing) {
+                      setShowZoneDropdown(true);
+                    }
+                    e.target.select();
+                  }}
+                  onBlur={() => {
+                    setZoneFocused(false);
+                    setTimeout(() => setShowZoneDropdown(false), 200);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.currentTarget.blur();
+                      handleUpdate();
+                    }
+                  }}
+                  placeholder={supportsPricing ? "Zone" : "N/A"}
+                  disabled={!supportsPricing}
+                  className="font-medium focus:outline-none bg-transparent disabled:cursor-not-allowed"
+                  style={{ color: 'var(--text-primary)', height: '26px', fieldSizing: 'content', minWidth: '100px' }}
+                />
+              </div>
+            </div>
+            {showZoneDropdown && supportsPricing && (
+              <div 
+                className="absolute z-10 mt-1 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                style={{ 
+                  backgroundColor: 'var(--bg-secondary)',
+                  borderWidth: '1px',
+                  borderStyle: 'solid',
+                  borderColor: 'var(--text-secondary)',
+                  minWidth: '250px'
+                }}
+              >
+                {getZones(location)
+                  .filter(z => 
+                    !zoneSearchTerm || 
+                    z.toLowerCase().includes(zoneSearchTerm.toLowerCase())
+                  )
+                  .map(z => (
+                    <button
+                      key={z}
+                      onClick={() => {
+                        setZone(z);
+                        setZoneSearchTerm("");
+                        setShowZoneDropdown(false);
+                        setTimeout(() => handleUpdate(), 100);
+                      }}
+                      className="w-full text-left px-4 py-2 hover:bg-opacity-80 transition-colors"
+                      style={{ 
+                        backgroundColor: zone === z ? 'var(--active)' : 'transparent',
+                        color: 'var(--text-primary)'
+                      }}
+                    >
+                      <div className="font-semibold">{z}</div>
+                    </button>
+                  ))}
+              </div>
+            )}
+            </div>
           </div>
         </div>
 
@@ -536,19 +587,39 @@ export default function Home() {
             </div>
           )}
           
-          {/* Show critical error if pricing (for ISOs) fails */}
-          {supportsPricing && !pricingData && pricingError && (
+          {/* Show pricing error for ISOs, but only block chart if no fuel mix data available */}
+          {supportsPricing && !pricingData && pricingError && !hasFuelMixData && (
             <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
               <p className="font-semibold" style={{ color: 'var(--alert)' }}>
-                {pricingError.message?.includes("Rate limit") ? "⏱️ Rate Limit Reached" : "❌ Pricing Data Failed"}
+                {pricingError.message?.includes("quota exceeded") || pricingError.message?.includes("limit reached") 
+                  ? "🚫 Grid Status API Quota Exceeded" 
+                  : pricingError.message?.includes("Rate limit") 
+                    ? "⏱️ Rate Limit Reached" 
+                    : "❌ Pricing Data Failed"}
               </p>
               <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
                 {pricingError.message || "Unknown error"}
                 {pricingError.message?.includes("timeout") && " (API timeout - Grid Status may be slow)"}
-                {pricingError.message?.includes("Rate limit") && " Automatic retry in progress with extended delays."}
-                {pricingRetryCount > 0 && ` - Attempted ${pricingRetryCount} retries`}
+                {(pricingError.message?.includes("quota exceeded") || pricingError.message?.includes("limit reached")) && 
+                  " Please upgrade your Grid Status API plan or wait for quota reset."}
+                {pricingError.message?.includes("Rate limit") && !pricingError.message?.includes("quota") && 
+                  " Automatic retry in progress with extended delays."}
+                {pricingRetryCount > 0 && !pricingError.message?.includes("quota") && ` - Attempted ${pricingRetryCount} retries`}
               </p>
-              <p className="text-sm mt-2 font-medium" style={{ color: 'var(--alert)' }}>Cannot display chart without pricing data.</p>
+              <p className="text-sm mt-2 font-medium" style={{ color: 'var(--alert)' }}>Cannot display chart without data.</p>
+            </div>
+          )}
+          
+          {/* Show pricing error as simple text if fuel mix is available */}
+          {supportsPricing && !pricingData && pricingError && hasFuelMixData && (
+            <div className="mb-4">
+              <p className="text-sm" style={{ color: 'var(--alert)' }}>
+                {pricingError.message?.includes("quota exceeded") || pricingError.message?.includes("limit reached") 
+                  ? "Sorry, pricing data is unavailable due to Grid Status API quota limits. Showing fuel mix data only." 
+                  : pricingError.message?.includes("Rate limit") 
+                    ? "Sorry, pricing data is temporarily unavailable due to rate limiting. Showing fuel mix data only." 
+                    : "Sorry, pricing data is currently unavailable. Showing fuel mix data only."}
+              </p>
             </div>
           )}
           
@@ -563,10 +634,16 @@ export default function Home() {
           
           {supportsPricing && hasPricingDataLoaded && !hasFuelMixData && fuelMixError && (
             <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
-              <p className="font-semibold" style={{ color: 'var(--alert)' }}>ℹ️ Fuel Mix Data Unavailable</p>
+              <p className="font-semibold" style={{ color: 'var(--alert)' }}>
+                {fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit") 
+                  ? "🚫 EIA API Rate Limit Exceeded" 
+                  : "ℹ️ Fuel Mix Data Unavailable"}
+              </p>
               <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
                 {fuelMixError.message || "Unknown error"}
-                {fuelMixRetryCount > 0 && ` (Attempted ${fuelMixRetryCount} retries)`}
+                {(fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit")) && 
+                  " Please wait for the rate limit to reset or use a different API key."}
+                {fuelMixRetryCount > 0 && !fuelMixError.message?.includes("rate") && ` (Attempted ${fuelMixRetryCount} retries)`}
               </p>
               <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>Showing pricing data only - fuel mix enhancement unavailable.</p>
             </div>
@@ -575,15 +652,21 @@ export default function Home() {
           {/* Show error for non-ISO BAs if fuel mix fails */}
           {!supportsPricing && !fuelMixData && fuelMixError && (
             <div className="border-2 rounded-lg p-4 mb-4 shadow-sm" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--alert)' }}>
-              <p className="font-semibold" style={{ color: 'var(--alert)' }}>❌ Fuel Mix Data Failed</p>
+              <p className="font-semibold" style={{ color: 'var(--alert)' }}>
+                {fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit") 
+                  ? "🚫 EIA API Rate Limit Exceeded" 
+                  : "❌ Fuel Mix Data Failed"}
+              </p>
               <p className="text-sm mt-1" style={{ color: 'var(--alert)' }}>
                 {fuelMixError.message || "Unknown error"}
-                {fuelMixRetryCount > 0 && ` (Attempted ${fuelMixRetryCount} retries)`}
+                {(fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit")) && 
+                  " Please wait for the rate limit to reset or use a different API key."}
+                {fuelMixRetryCount > 0 && !fuelMixError.message?.includes("rate") && ` (Attempted ${fuelMixRetryCount} retries)`}
               </p>
             </div>
           )}
           
-          {/* Render chart when pricing data (primary) is available */}
+          {/* Render chart when any data is available */}
           {hasAnyData && (
             <>
               <CombinedChart 
