@@ -154,6 +154,17 @@ export default function Home() {
   const addressInputRef = useRef<HTMLInputElement>(null);
   const baInputRef = useRef<HTMLInputElement>(null);
   const zoneInputRef = useRef<HTMLInputElement>(null);
+  const baDropdownRef = useRef<HTMLDivElement>(null);
+  const selectedBARef = useRef<HTMLButtonElement>(null);
+
+  // Scroll selected BA into center view when dropdown opens
+  useEffect(() => {
+    if (showBADropdown && selectedBARef.current && baDropdownRef.current) {
+      setTimeout(() => {
+        selectedBARef.current?.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }, 0);
+    }
+  }, [showBADropdown]);
 
   // Generate mock pricing data for development/testing
   const generateMockPricingData = (date: string): LMPDataPoint[] => {
@@ -577,13 +588,15 @@ export default function Home() {
             </div>
             {showBADropdown && (
               <div 
-                className="absolute z-10 mt-1 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                ref={baDropdownRef}
+                className="absolute z-10 mt-1 rounded-lg shadow-lg overflow-y-auto"
                 style={{ 
-                  backgroundColor: 'var(--bg-secondary)',
+                  backgroundColor: 'var(--background)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderColor: 'var(--text-secondary)',
-                  minWidth: '300px'
+                  minWidth: '300px',
+                  maxHeight: '240px'
                 }}
               >
                 {allBAs
@@ -595,6 +608,7 @@ export default function Home() {
                   .map(ba => (
                     <button
                       key={ba.code}
+                      ref={location === ba.code ? selectedBARef : null}
                       onClick={() => {
                         setLocation(ba.code);
                         setAddress(""); // Clear location field when BA changes
@@ -607,13 +621,13 @@ export default function Home() {
                         setFuelMixRetryCount(0);
                         setPricingRetryCount(0);
                       }}
-                      className="w-full text-left px-4 py-2 hover:bg-opacity-80 transition-colors"
+                      className="w-full text-left px-4 py-1.5 hover:bg-opacity-80 transition-colors"
                       style={{ 
                         backgroundColor: location === ba.code ? 'var(--active)' : 'transparent',
                         color: 'var(--text-primary)'
                       }}
                     >
-                      <div className="font-bold text-base">{ba.name}</div>
+                      <div className="text-base">{ba.name}</div>
                       <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                         {ba.code} {ba.hasPricing && '• Pricing Available'}
                       </div>
