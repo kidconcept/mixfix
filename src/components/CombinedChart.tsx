@@ -190,7 +190,12 @@ export default function CombinedChart({ fuelMixData, pricingData, location }: Co
     const dateStr = pricingData?.[0]?.time || fuelMixData?.[0]?.date;
     if (!dateStr) return "";
     
-    const date = new Date(dateStr);
+    // Extract date components (YYYY-MM-DD) and create a local date
+    // This avoids timezone issues and handles hour 24 timestamps
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!match) return "";
+    
+    const date = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
     const options: Intl.DateTimeFormatOptions = { 
       year: 'numeric', 
       month: 'long', 
