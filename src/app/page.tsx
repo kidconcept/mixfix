@@ -2,6 +2,7 @@
 
 import CombinedChart from "@/components/CombinedChart";
 import Message from "@/components/Message";
+import ThemeSwitcher from "../components/ThemeSwitcher";
 import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
@@ -416,6 +417,7 @@ export default function Home() {
   const displayPricingData = useMockPricing ? mockPricingData : pricingData?.lmp;
 
   return (
+    <>
     <SWRConfig value={swrConfig}>
       <main className="min-h-screen p-6 md:p-10">
         {/* All Fields - Inline Edit Style */}
@@ -906,6 +908,10 @@ export default function Home() {
                       <span>Simulated LMP data for demonstration</span>
                     </div>
                   )}
+
+                  <div className="pt-1">
+                    <ThemeSwitcher />
+                  </div>
                 </div>
               )}
             </>
@@ -913,5 +919,6 @@ export default function Home() {
         </div>
       </main>
     </SWRConfig>
+    </>
   );
 }
