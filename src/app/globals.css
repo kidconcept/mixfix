@@ -41,6 +41,8 @@
   --fuel-gas: #ada6a6;
   --fuel-oil: #796869;
   --fuel-nuclear: #474040;
+  /* Charging/Storage Load */
+  --fuel-charging: #e85d9c;
   
   /* Pricing Colors */
   --price-lmp: #d44a0e;

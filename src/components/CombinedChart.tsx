@@ -10,6 +10,7 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
   TooltipProps,
 } from "recharts";
 import { HistoricalRecord, LMPDataPoint } from "@/types/energy";
@@ -23,7 +24,7 @@ interface CombinedChartProps {
   zoneName?: string; // Zone name for Y-axis label
 }
 
-type DataKey = 'solar' | 'wind' | 'hydro' | 'geothermal' | 'biomass' | 'batteries' | 'imports' | 'other' | 'coal' | 'gas' | 'oil' | 'nuclear' | 'lmp' | 'energy' | 'congestion' | 'loss';
+type DataKey = 'solar' | 'wind' | 'hydro' | 'geothermal' | 'biomass' | 'batteries' | 'imports' | 'other' | 'coal' | 'gas' | 'oil' | 'nuclear' | 'charging' | 'lmp' | 'energy' | 'congestion' | 'loss';
 
 // Map data keys to CSS variable names
 const COLOR_VARS: Record<DataKey, string> = {
@@ -40,6 +41,7 @@ const COLOR_VARS: Record<DataKey, string> = {
   gas: 'var(--fuel-gas)',
   oil: 'var(--fuel-oil)',
   nuclear: 'var(--fuel-nuclear)',
+  charging: 'var(--fuel-charging)',
   // Pricing
   lmp: 'var(--price-lmp)',
   energy: 'var(--price-energy)',
@@ -64,6 +66,10 @@ const LEGEND_GROUPS: LegendGroup[] = [
   {
     name: "Consumables",
     items: ['coal', 'gas', 'oil', 'nuclear']
+  },
+  {
+    name: "Storage Load",
+    items: ['charging']
   }
 ];
 
@@ -88,7 +94,8 @@ const CustomTooltip = ({
   const sortOrder: DataKey[] = [
     'lmp', 'energy', 'congestion', 'loss',
     'solar', 'wind', 'hydro', 'geothermal', 'biomass', 'batteries', 'imports', 'other',
-    'coal', 'gas', 'oil', 'nuclear'
+    'coal', 'gas', 'oil', 'nuclear',
+    'charging'
   ];
   const sortedPayload = [...filteredPayload].sort((a, b) => {
     const aIndex = sortOrder.indexOf(a.dataKey as DataKey);
@@ -114,7 +121,9 @@ const CustomTooltip = ({
         const dataKey = String(item.dataKey || '');
         const isPricing = ["lmp", "energy", "congestion", "loss"].includes(dataKey.toLowerCase());
         const displayName = dataKey ? 
-          (isPricing ? dataKey.toUpperCase() : dataKey.charAt(0).toUpperCase() + dataKey.slice(1))
+          (isPricing ? dataKey.toUpperCase() : 
+           dataKey === 'charging' ? 'Charging' :
+           dataKey.charAt(0).toUpperCase() + dataKey.slice(1))
           : item.name;
         const formattedValue = isPricing 
           ? `$${Number(item.value).toFixed(2)}/MWh`
@@ -160,6 +169,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
     gas: true,
     oil: true,
     nuclear: true,
+    // Charging
+    charging: true,
     // Pricing (4)
     lmp: true,
     energy: true,
@@ -184,6 +195,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
       gas: false,
       oil: false,
       nuclear: false,
+      // Charging
+      charging: false,
       // Pricing (4)
       lmp: false,
       energy: false,
@@ -266,21 +279,47 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
       return isNaN(num) ? 0 : num;
     };
 
+    // Extract raw values
+    const rawSolar = fuelData ? toNumber(fuelData.solar) : 0;
+    const rawWind = fuelData ? toNumber(fuelData.wind) : 0;
+    const rawHydro = fuelData ? toNumber(fuelData.hydro) : 0;
+    const rawGeothermal = fuelData ? toNumber(fuelData.geothermal) : 0;
+    const rawBiomass = fuelData ? toNumber(fuelData.biomass) : 0;
+    const rawBatteries = fuelData ? toNumber(fuelData.batteries) : 0;
+    const rawImports = fuelData ? toNumber(fuelData.imports) : 0;
+    const rawOther = fuelData ? toNumber(fuelData.other) : 0;
+    const rawNuclear = fuelData ? toNumber(fuelData.nuclear) : 0;
+    const rawGas = fuelData ? toNumber(fuelData.gas) : 0;
+    const rawCoal = fuelData ? toNumber(fuelData.coal) : 0;
+    const rawOil = fuelData ? toNumber(fuelData.oil) : 0;
+
+    // Split negatives: positive part stays, negative part accumulates to charging
+    let chargingTotal = 0;
+    const split = (val: number) => {
+      if (val < 0) {
+        chargingTotal += Math.abs(val);
+        return 0;
+      }
+      return val;
+    };
+
     return {
       hour,
-      // Fuel mix data (already in GW from API)
-      solar: fuelData ? toNumber(fuelData.solar) : 0,
-      wind: fuelData ? toNumber(fuelData.wind) : 0,
-      hydro: fuelData ? toNumber(fuelData.hydro) : 0,
-      geothermal: fuelData ? toNumber(fuelData.geothermal) : 0,
-      biomass: fuelData ? toNumber(fuelData.biomass) : 0,
-      batteries: fuelData ? toNumber(fuelData.batteries) : 0,
-      imports: fuelData ? toNumber(fuelData.imports) : 0,
-      nuclear: fuelData ? toNumber(fuelData.nuclear) : 0,
-      gas: fuelData ? toNumber(fuelData.gas) : 0,
-      coal: fuelData ? toNumber(fuelData.coal) : 0,
-      oil: fuelData ? toNumber(fuelData.oil) : 0,
-      other: fuelData ? toNumber(fuelData.other) : 0,
+      // Fuel mix data - positive parts only
+      solar: split(rawSolar),
+      wind: split(rawWind),
+      hydro: split(rawHydro),
+      geothermal: split(rawGeothermal),
+      biomass: split(rawBiomass),
+      batteries: split(rawBatteries),
+      imports: split(rawImports),
+      other: split(rawOther),
+      nuclear: split(rawNuclear),
+      gas: split(rawGas),
+      coal: split(rawCoal),
+      oil: split(rawOil),
+      // Charging (accumulated negatives)
+      charging: chargingTotal,
       // Pricing data - all components
       lmp: priceData ? Number(priceData.lmp.toFixed(2)) : null,
       energy: priceData ? Number(priceData.energy.toFixed(2)) : null,
@@ -300,7 +339,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
   // Create a Set of keys that have data for filtering tooltip
   const keysWithData = new Set<DataKey>(
     ['solar', 'wind', 'hydro', 'geothermal', 'biomass', 'batteries', 'imports', 'other', 
-     'coal', 'gas', 'oil', 'nuclear', 'lmp', 'energy', 'congestion', 'loss']
+     'coal', 'gas', 'oil', 'nuclear', 'charging', 'lmp', 'energy', 'congestion', 'loss']
       .filter(key => hasDataForKey(key as DataKey)) as DataKey[]
   );
 
@@ -567,6 +606,28 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             name="Loss"
             connectNulls
             hide={!visibility.loss}
+          />
+          
+          {/* Zero reference line for clarity when showing charging */}
+          <ReferenceLine 
+            y={0} 
+            yAxisId="generation"
+            stroke="var(--text-secondary)" 
+            strokeDasharray="3 3"
+            strokeOpacity={0.5}
+          />
+          
+          {/* Charging area - separate stack below zero */}
+          <Area
+            yAxisId="generation"
+            type="monotone"
+            dataKey="charging"
+            stackId="charging"
+            stroke="var(--fuel-charging)"
+            fill="var(--fuel-charging)"
+            fillOpacity={0.95}
+            name="Charging"
+            hide={!visibility.charging}
           />
         </ComposedChart>
       </ResponsiveContainer>
