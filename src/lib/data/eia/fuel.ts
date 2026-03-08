@@ -183,10 +183,10 @@ function buildParams(apiKey: string, location: string, date: string): URLSearchP
 function transformEIAData(rows: EIARow[], date: string): HistoricalRecord[] {
   const hourlyMap = new Map<string, Map<EnergySource, number>>();
   
-  // Calculate next day for hour 24 mapping
-  const nextDay = new Date(date);
-  nextDay.setDate(nextDay.getDate() + 1);
-  const nextDayStr = nextDay.toISOString().split('T')[0];
+  // Calculate next day for hour 24 mapping (simple string arithmetic to avoid timezone issues)
+  const [year, month, day] = date.split('-').map(Number);
+  const nextDate = new Date(year, month - 1, day + 1);
+  const nextDayStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
 
   for (const row of rows) {
     let hour = row.period;

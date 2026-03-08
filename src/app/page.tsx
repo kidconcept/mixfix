@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
 import { getAllBAs, getZones, hasPricingData, getRepresentativeZone } from "@/lib/config/balancing-authorities";
+import { LMPDataPoint } from "@/types/energy";
 
 // Fetcher with timeout for client-side requests
 const fetcher = async (url: string) => {
@@ -33,13 +34,23 @@ const fetcher = async (url: string) => {
   }
 };
 
-// Get yesterday's date in YYYY-MM-DD format
-function getYesterday(): string {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  const year = yesterday.getFullYear();
-  const month = String(yesterday.getMonth() + 1).padStart(2, '0');
-  const day = String(yesterday.getDate()).padStart(2, '0');
+// Get two days ago in YYYY-MM-DD format (to ensure complete data availability)
+// EIA data has a delay, so yesterday might not have complete data yet
+function getTwoDaysAgo(): string {
+  const twoDaysAgo = new Date();
+  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  const year = twoDaysAgo.getFullYear();
+  const month = String(twoDaysAgo.getMonth() + 1).padStart(2, '0');
+  const day = String(twoDaysAgo.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Get today's date in YYYY-MM-DD format (for max date input)
+function getToday(): string {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
@@ -48,7 +59,7 @@ export default function Home() {
   const allBAs = getAllBAs();
   
   const [location, setLocation] = useState<string>("NYISO");
-  const [date, setDate] = useState(getYesterday());
+  const [date, setDate] = useState(getTwoDaysAgo());
   const [zone, setZone] = useState<string>("CAPITL");
   const [showBADropdown, setShowBADropdown] = useState(false);
   const [baSearchTerm, setBaSearchTerm] = useState("");
@@ -69,11 +80,58 @@ export default function Home() {
   const [zoneHovered, setZoneHovered] = useState(false);
   const [fuelMixRetryCount, setFuelMixRetryCount] = useState(0);
   const [pricingRetryCount, setPricingRetryCount] = useState(0);
+  const [useMockPricing, setUseMockPricing] = useState(false);
+  const [mockPricingData, setMockPricingData] = useState<LMPDataPoint[] | null>(null);
+  const [gridStatusQuotaExceeded, setGridStatusQuotaExceeded] = useState(false);
   
   const dateInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
   const baInputRef = useRef<HTMLInputElement>(null);
   const zoneInputRef = useRef<HTMLInputElement>(null);
+
+  // Generate mock pricing data for development/testing
+  const generateMockPricingData = (date: string): LMPDataPoint[] => {
+    const hours = Array.from({ length: 25 }, (_, i) => i); // 0-24 for 25-hour cycle
+    return hours.map(hour => {
+      // For hour 24, use the same date but hour 24 (matches EIA pattern)
+      const timeStr = `${date}T${String(hour).padStart(2, '0')}:00:00`;
+      
+      // Simulate typical daily pricing pattern
+      // Higher during peak hours (8am-8pm), lower at night
+      const hourOfDay = hour % 24;
+      const isPeak = hourOfDay >= 8 && hourOfDay <= 20;
+      const baseLMP = isPeak ? 45 : 25;
+      const variation = Math.random() * 20 - 10;
+      
+      const lmp = baseLMP + variation;
+      const energy = lmp * 0.85; // Energy is typically ~85% of LMP
+      const congestion = Math.random() * 5 - 2.5; // Small congestion component
+      const loss = lmp - energy - congestion; // Loss is the remainder
+      
+      return {
+        time: timeStr,
+        lmp: Number(lmp.toFixed(2)),
+        energy: Number(energy.toFixed(2)),
+        congestion: Number(congestion.toFixed(2)),
+        loss: Number(loss.toFixed(2)),
+      };
+    });
+  };
+
+  // Enable mock pricing data
+  const handleEnableMockPricing = () => {
+    const mockData = generateMockPricingData(date);
+    setMockPricingData(mockData);
+    setUseMockPricing(true);
+  };
+
+  // Update mock pricing data when date changes (but keep mock pricing enabled)
+  useEffect(() => {
+    if (useMockPricing) {
+      const mockData = generateMockPricingData(date);
+      setMockPricingData(mockData);
+    }
+  }, [date, useMockPricing]);
 
   const handleLocate = async () => {
     setIsLocating(true);
@@ -221,6 +279,13 @@ export default function Home() {
     shouldRetryOnError: false,
   });
 
+  // Check for Grid Status quota exceeded in pricing error
+  useEffect(() => {
+    if (pricingError?.message?.includes("quota exceeded") || pricingError?.message?.includes("limit reached")) {
+      setGridStatusQuotaExceeded(true);
+    }
+  }, [pricingError]);
+
   // Retry logic for fuel mix data with exponential backoff
   useEffect(() => {
     if (fuelMixError && !fuelMixData && fuelMixRetryCount < 3) {
@@ -301,15 +366,18 @@ export default function Home() {
   const supportsPricing = hasPricingData(location);
   
   // Data availability - show chart if we have either pricing or fuel mix data
-  const hasPricingDataLoaded = !!pricingData;
+  const hasPricingDataLoaded = !!pricingData || useMockPricing;
   const hasFuelMixData = !!fuelMixData;
   const hasAnyData = hasPricingDataLoaded || hasFuelMixData; // Show chart with any available data
+
+  // Use mock pricing data if enabled, otherwise use real data
+  const displayPricingData = useMockPricing ? mockPricingData : pricingData?.lmp;
 
   return (
     <SWRConfig value={swrConfig}>
       <main className="min-h-screen p-6 md:p-10">
         {/* All Fields - Inline Edit Style */}
-        <div className="mb-4 flex flex-wrap gap-6 items-baseline">
+        <div className="mb-2 flex flex-wrap gap-6 items-baseline">
           {/* Brand */}
           <div className="flex flex-col">
             <div className="text-xs font-semibold px-3 invisible">_</div>
@@ -330,7 +398,7 @@ export default function Home() {
                 ref={dateInputRef}
                 type="date"
                 value={date}
-                max={new Date().toISOString().split('T')[0]}
+                max={getToday()}
                 onChange={(e) => setDate(e.target.value)}
                 onFocus={(e) => {
                   setDateFocused(true);
@@ -611,14 +679,34 @@ export default function Home() {
           )}
           
           {/* Show pricing error as simple text if fuel mix is available */}
-          {supportsPricing && !pricingData && pricingError && hasFuelMixData && (
+          {supportsPricing && !pricingData && (pricingError || gridStatusQuotaExceeded) && hasFuelMixData && !useMockPricing && (
             <div className="mb-4">
               <p className="text-sm" style={{ color: 'var(--alert)' }}>
-                {pricingError.message?.includes("quota exceeded") || pricingError.message?.includes("limit reached") 
-                  ? "Sorry, pricing data is unavailable due to Grid Status API quota limits. Showing fuel mix data only." 
-                  : pricingError.message?.includes("Rate limit") 
-                    ? "Sorry, pricing data is temporarily unavailable due to rate limiting. Showing fuel mix data only." 
-                    : "Sorry, pricing data is currently unavailable. Showing fuel mix data only."}
+                {(pricingError?.message?.includes("quota exceeded") || pricingError?.message?.includes("limit reached") || gridStatusQuotaExceeded) 
+                  ? (
+                    <>
+                      Sorry, pricing data is unavailable due to Grid Status API quota limits.{" "}
+                      <button
+                        onClick={handleEnableMockPricing}
+                        className="underline font-semibold hover:opacity-80 transition-opacity"
+                        style={{ color: 'var(--interactive-primary)' }}
+                      >
+                        Do you want to see mock pricing data?
+                      </button>
+                    </>
+                  )
+                  : pricingError?.message?.includes("Rate limit") 
+                    ? "Sorry, pricing data is temporarily unavailable due to rate limiting." 
+                    : "Sorry, pricing data is currently unavailable."}
+              </p>
+            </div>
+          )}
+          
+          {/* Show message when displaying mock pricing data */}
+          {supportsPricing && useMockPricing && hasFuelMixData && (
+            <div className="mb-4">
+              <p className="text-sm font-medium" style={{ color: 'var(--alert)' }}>
+                Showing mock pricing data.
               </p>
             </div>
           )}
@@ -671,10 +759,10 @@ export default function Home() {
             <>
               <CombinedChart 
                 fuelMixData={fuelMixData?.hourly || []} 
-                pricingData={pricingData?.lmp || []}
+                pricingData={displayPricingData || []}
                 location={location}
               />
-              {(fuelMixData?.meta || pricingData?.meta) && (
+              {(fuelMixData?.meta || pricingData?.meta || useMockPricing) && (
                 <div className="text-sm text-left space-y-1" style={{ color: 'var(--text-secondary)' }}>
                   <div className="font-semibold" style={{ color: 'var(--text-primary)' }}>Data Sources:</div>
                   
@@ -700,7 +788,7 @@ export default function Home() {
                   )}
                   
                   {/* Grid Status API - Pricing */}
-                  {pricingData?.meta && (
+                  {pricingData?.meta && !useMockPricing && (
                     <div className="flex flex-wrap items-center gap-x-2">
                       <a
                         href="https://www.gridstatus.io"
@@ -718,6 +806,21 @@ export default function Home() {
                       </span>
                       <span>→</span>
                       <span>Locational Marginal Price (LMP = Energy + Congestion + Loss)</span>
+                    </div>
+                  )}
+                  
+                  {/* Mock Pricing Data */}
+                  {useMockPricing && (
+                    <div className="flex flex-wrap items-center gap-x-2">
+                      <span className="font-semibold" style={{ color: 'var(--interactive-primary)' }}>
+                        Mock Pricing Data
+                      </span>
+                      <span>→</span>
+                      <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+                        {location} / Zone: {zone}
+                      </span>
+                      <span>→</span>
+                      <span>Simulated LMP data for demonstration</span>
                     </div>
                   )}
                 </div>
