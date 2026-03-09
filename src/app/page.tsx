@@ -298,10 +298,8 @@ export default function Home() {
             
             // Create a readable address from the result
             const city = data.address.city || data.address.town || data.address.village || "";
-            const county = data.address.county || "";
-            const state = data.address.state || "";
             
-            const autoAddress = [city, county, state].filter(Boolean).join(", ");
+            const autoAddress = city;
             if (autoAddress) {
               setAddress(autoAddress);
               
@@ -438,27 +436,144 @@ export default function Home() {
   // Use mock pricing data if enabled, otherwise use real data
   const displayPricingData = useMockPricing ? mockPricingData : pricingData?.lmp;
 
+  const statusMessageNode = (() => {
+    const messages: React.ReactNode[] = [];
+    let hasError = false;
+
+    // Geocoding status
+    if (geocodeMessage) {
+      // Success messages contain " → ", errors don't
+      const isError = !geocodeMessage.includes(" → ");
+      if (isError) hasError = true;
+      messages.push(geocodeMessage);
+    }
+
+    // Non-ISO BA info
+    if (!supportsPricing && location) {
+      messages.push(`Pricing unavailable for ${location}; showing fuel mix only`);
+    }
+
+    // No BA selected
+    if (!location) {
+      messages.push("Select a BA and zone to load data");
+    }
+
+    // Loading state
+    if (!hasAnyData && (supportsPricing ? pricingLoading : fuelMixLoading)) {
+      messages.push(
+        `Loading ${supportsPricing ? "pricing" : "fuel mix"}${
+          (supportsPricing ? pricingRetryCount : fuelMixRetryCount) > 0
+            ? ` (Retry ${supportsPricing ? pricingRetryCount : fuelMixRetryCount}/3)`
+            : ""
+        }${supportsPricing && fuelMixLoading ? " and fuel mix" : ""}...`
+      );
+    }
+
+    // Pricing error blocking chart
+    if (supportsPricing && !pricingData && pricingError && !hasFuelMixData) {
+      hasError = true;
+      messages.push(
+        (pricingError.message?.includes("quota exceeded") || pricingError.message?.includes("limit reached"))
+          ? "Grid Status quota exceeded. Chart unavailable."
+          : pricingError.message?.includes("Rate limit")
+            ? `Pricing rate limited${pricingRetryCount > 0 ? ` after ${pricingRetryCount} retries` : ""}. Chart unavailable.`
+            : `Pricing failed: ${pricingError.message || "Unknown error"}. Chart unavailable.`
+      );
+    }
+
+    // Pricing error with fuel mix fallback
+    if (supportsPricing && !pricingData && (pricingError || gridStatusQuotaExceeded) && hasFuelMixData && !useMockPricing) {
+      hasError = true;
+      if (pricingError?.message?.includes("quota exceeded") || pricingError?.message?.includes("limit reached") || gridStatusQuotaExceeded) {
+        messages.push(
+          <>
+            Pricing unavailable due to quota limits.{" "}
+            <button
+              onClick={handleEnableMockPricing}
+              className="underline transition-colors"
+              style={{ color: 'var(--text-primary)' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--interactive-primary)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+            >
+              Show mock pricing
+            </button>
+          </>
+        );
+      } else {
+        messages.push(
+          pricingError?.message?.includes("Rate limit")
+            ? "Pricing temporarily unavailable (rate limit)"
+            : "Pricing unavailable"
+        );
+      }
+    }
+
+    // Mock pricing active
+    if (supportsPricing && useMockPricing && hasFuelMixData) {
+      messages.push("Showing mock pricing");
+    }
+
+    // Fuel mix loading (secondary)
+    if (supportsPricing && hasPricingDataLoaded && !hasFuelMixData && fuelMixLoading) {
+      messages.push(`Loading fuel mix${fuelMixRetryCount > 0 ? ` (Retry ${fuelMixRetryCount}/3)` : ""}...`);
+    }
+
+    // Fuel mix error with pricing fallback
+    if (supportsPricing && hasPricingDataLoaded && !hasFuelMixData && fuelMixError) {
+      hasError = true;
+      messages.push(
+        (fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit"))
+          ? "EIA rate limited. Showing pricing only."
+          : `Fuel mix unavailable: ${fuelMixError.message || "Unknown error"}. Showing pricing only.`
+      );
+    }
+
+    // Non-ISO fuel mix error
+    if (!supportsPricing && location && !fuelMixData && fuelMixError) {
+      hasError = true;
+      messages.push(
+        fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit")
+          ? "EIA rate limited. Try again soon."
+          : `Fuel mix failed: ${fuelMixError.message || "Unknown error"}`
+      );
+    }
+
+    if (messages.length === 0) return null;
+
+    return (
+      <Message type={hasError ? "error" : "info"} className="mb-0">
+        {messages.map((msg, i) => (
+          <span key={i}>
+            {i > 0 && " | "}
+            {msg}
+          </span>
+        ))}
+      </Message>
+    );
+  })();
+
   return (
     <>
     <SWRConfig value={swrConfig}>
       <main className="min-h-screen p-6 md:p-10 max-w-[1080px] w-full mx-auto">
-        {/* All Fields - Inline Edit Style */}
-        <div className="flex flex-wrap gap-6 items-baseline">
-          {/* Brand */}
-          <div className="flex flex-col mixfix-brand">
-            <div className="text-xs px-2 invisible mixfix-brand-spacer">_</div>
-            <div className="font-bold text-2xl mixfix-brand-title" style={{ color: 'var(--text-primary)' }}>mixfix</div>
+        {/* Top Row: Brand + Status Message */}
+        <div className="flex flex-wrap gap-4 items-baseline">
+          <div className="font-bold text-2xl mixfix-brand-title" style={{ color: 'var(--text-primary)' }}>mixfix</div>
+
+          <div className="flex-1 min-w-[260px]">
+            {statusMessageNode}
           </div>
-          
-          {/* Form Fields Group - wraps together */}
-          <div className="flex flex-wrap gap-2 items-baseline form-fields-group">
+        </div>
+
+        {/* Search Fields Row */}
+        <div className="mt-2 flex flex-wrap gap-2 items-baseline form-fields-group">
           
           {/* Date Field */}
           <div className="flex flex-col form-field-block">
-            <label className="text-xs font-semibold px-2" style={{ color: 'var(--text-secondary)' }}>Date</label>
+            <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)' }}>Date</label>
             <div className="flex items-center gap-0">
             <div 
-              className="relative inline-flex items-center border rounded-lg px-2 transition-all form-field-shell" 
+              className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
               style={{ borderColor: (dateFocused || dateHovered) ? 'var(--active)' : 'transparent', height: '32px' }}
               onMouseEnter={() => setDateHovered(true)}
               onMouseLeave={() => setDateHovered(false)}
@@ -493,11 +608,11 @@ export default function Home() {
 
           {/* Address Field */}
           <div className="flex flex-col form-field-block">
-            <label className="text-xs font-semibold px-2" style={{ color: 'var(--text-secondary)' }}>Location</label>
+            <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)' }}>Location</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
-                className="relative inline-flex items-center border rounded-lg px-2 transition-all form-field-shell" 
+                className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
                 style={{ borderColor: (addressFocused || addressHovered) ? 'var(--active)' : 'transparent', height: '32px' }}
                 onMouseEnter={() => setAddressHovered(true)}
                 onMouseLeave={() => setAddressHovered(false)}
@@ -554,11 +669,11 @@ export default function Home() {
 
           {/* BA Field */}
           <div className="flex flex-col form-field-block">
-            <label className="text-xs font-semibold px-2" style={{ color: 'var(--text-secondary)' }}>BA</label>
+            <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)' }}>BA</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
-                className="relative inline-flex items-center border rounded-lg px-2 transition-all form-field-shell" 
+                className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
                 style={{ borderColor: (baFocused || baHovered) ? 'var(--active)' : 'transparent', height: '32px' }}
                 onMouseEnter={() => setBaHovered(true)}
                 onMouseLeave={() => setBaHovered(false)}
@@ -651,11 +766,11 @@ export default function Home() {
 
           {/* Zone Field */}
           <div className="flex flex-col form-field-block">
-            <label className="text-xs font-semibold px-2" style={{ color: 'var(--text-secondary)', opacity: supportsPricing ? 1 : 0.5 }}>Zone</label>
+            <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)', opacity: supportsPricing ? 1 : 0.5 }}>Zone</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
-                className="relative inline-flex items-center border rounded-lg px-2 transition-all form-field-shell" 
+                className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
                 style={{ 
                   borderColor: (zoneFocused || zoneHovered) && supportsPricing ? 'var(--active)' : 'transparent', 
                   height: '32px',
@@ -748,128 +863,10 @@ export default function Home() {
             </div>
           </div>
           
-          </div>{/* End Form Fields Group */}
-        </div>
+        </div>{/* End Form Fields Group */}
 
         {/* Data Display */}
         <div className="mt-4 data-display-container">
-          {/* Consolidated status messages */}
-          {(() => {
-            const messages: React.ReactNode[] = [];
-            let hasError = false;
-            
-            // Geocoding status
-            if (geocodeMessage) {
-              // Success messages contain " → ", errors don't
-              const isError = !geocodeMessage.includes(" → ");
-              if (isError) hasError = true;
-              messages.push(geocodeMessage);
-            }
-            
-            // Non-ISO BA info
-            if (!supportsPricing && location) {
-              messages.push(`Pricing unavailable for ${location}; showing fuel mix only`);
-            }
-            
-            // No BA selected
-            if (!location) {
-              messages.push("Select a BA and zone to load data");
-            }
-            
-            // Loading state
-            if (!hasAnyData && (supportsPricing ? pricingLoading : fuelMixLoading)) {
-              messages.push(
-                `Loading ${supportsPricing ? "pricing" : "fuel mix"}${
-                  (supportsPricing ? pricingRetryCount : fuelMixRetryCount) > 0 
-                    ? ` (Retry ${supportsPricing ? pricingRetryCount : fuelMixRetryCount}/3)` 
-                    : ""
-                }${supportsPricing && fuelMixLoading ? " and fuel mix" : ""}...`
-              );
-            }
-            
-            // Pricing error blocking chart
-            if (supportsPricing && !pricingData && pricingError && !hasFuelMixData) {
-              hasError = true;
-              messages.push(
-                (pricingError.message?.includes("quota exceeded") || pricingError.message?.includes("limit reached"))
-                  ? "Grid Status quota exceeded. Chart unavailable."
-                  : pricingError.message?.includes("Rate limit")
-                    ? `Pricing rate limited${pricingRetryCount > 0 ? ` after ${pricingRetryCount} retries` : ""}. Chart unavailable.`
-                    : `Pricing failed: ${pricingError.message || "Unknown error"}. Chart unavailable.`
-              );
-            }
-            
-            // Pricing error with fuel mix fallback
-            if (supportsPricing && !pricingData && (pricingError || gridStatusQuotaExceeded) && hasFuelMixData && !useMockPricing) {
-              hasError = true;
-              if (pricingError?.message?.includes("quota exceeded") || pricingError?.message?.includes("limit reached") || gridStatusQuotaExceeded) {
-                messages.push(
-                  <>
-                    Pricing unavailable due to quota limits.{" "}
-                    <button
-                      onClick={handleEnableMockPricing}
-                      className="underline transition-colors"
-                      style={{ color: 'var(--text-primary)' }}
-                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--interactive-primary)'}
-                      onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
-                    >
-                      Show mock pricing
-                    </button>
-                  </>
-                );
-              } else {
-                messages.push(
-                  pricingError?.message?.includes("Rate limit")
-                    ? "Pricing temporarily unavailable (rate limit)"
-                    : "Pricing unavailable"
-                );
-              }
-            }
-            
-            // Mock pricing active
-            if (supportsPricing && useMockPricing && hasFuelMixData) {
-              messages.push("Showing mock pricing");
-            }
-            
-            // Fuel mix loading (secondary)
-            if (supportsPricing && hasPricingDataLoaded && !hasFuelMixData && fuelMixLoading) {
-              messages.push(`Loading fuel mix${fuelMixRetryCount > 0 ? ` (Retry ${fuelMixRetryCount}/3)` : ""}...`);
-            }
-            
-            // Fuel mix error with pricing fallback
-            if (supportsPricing && hasPricingDataLoaded && !hasFuelMixData && fuelMixError) {
-              hasError = true;
-              messages.push(
-                (fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit"))
-                  ? "EIA rate limited. Showing pricing only."
-                  : `Fuel mix unavailable: ${fuelMixError.message || "Unknown error"}. Showing pricing only.`
-              );
-            }
-            
-            // Non-ISO fuel mix error
-            if (!supportsPricing && location && !fuelMixData && fuelMixError) {
-              hasError = true;
-              messages.push(
-                fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit")
-                  ? "EIA rate limited. Try again soon."
-                  : `Fuel mix failed: ${fuelMixError.message || "Unknown error"}`
-              );
-            }
-            
-            if (messages.length === 0) return null;
-            
-            return (
-              <Message type={hasError ? "error" : "info"} className="mb-4">
-                {messages.map((msg, i) => (
-                  <span key={i}>
-                    {i > 0 && " | "}
-                    {msg}
-                  </span>
-                ))}
-              </Message>
-            );
-          })()}
-          
           {/* Render chart when any data is available */}
           {hasAnyData && (
             <>

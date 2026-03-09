@@ -350,7 +350,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
   return (
     <div className="rounded-lg" style={{ background: 'transparent' }}>
       {/* Chart and Legend Side-by-Side */}
-      <div className="flex flex-col landscape:flex-row gap-2">
+      <div className="flex flex-col landscape:flex-row landscape:gap-6 gap-2">
         {/* Chart */}
         <div className="flex-1 chart-plot-area">
           <ResponsiveContainer width="100%" height={500}>
@@ -359,7 +359,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
           margin={{
             top: 30,
             right: 0,
-            left: 0,
+            left: -10,
             bottom: 25,
           }}
         >
@@ -381,19 +381,14 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             height={40}
           />
           
-          {/* Left Y-axis for Price */}
+          {/* Left Y-axis for Generation */}
           <YAxis 
-            yAxisId="price"
+            yAxisId="generation"
             stroke="var(--text-primary)"
             tick={{ fill: "var(--text-primary)" }}
             width={40}
-            domain={hasPricingData ? undefined : [0, 3]}
-            ticks={hasPricingData ? undefined : [0, 1, 2, 3]}
-            tickFormatter={(value) => hasPricingData ? value : ''}
             label={{ 
-              value: hasPricingData 
-                ? (zoneName ? `${zoneName} in $/MWh` : "Pricing in $/MWh")
-                : "Pricing unavailable",
+              value: baName ? `${baName} mix in GW` : "Generation in GW", 
               angle: 0, 
               position: "insideTopLeft",
               offset: -23,
@@ -405,15 +400,20 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             }}
           />
           
-          {/* Right Y-axis for Generation */}
+          {/* Right Y-axis for Price */}
           <YAxis 
-            yAxisId="generation"
+            yAxisId="price"
             orientation="right"
             stroke="var(--text-primary)"
             tick={{ fill: "var(--text-primary)" }}
             width={40}
+            domain={hasPricingData ? undefined : [0, 3]}
+            ticks={hasPricingData ? undefined : [0, 1, 2, 3]}
+            tickFormatter={(value) => hasPricingData ? value : ''}
             label={{ 
-              value: baName ? `${baName} mix in GW` : "Generation in GW", 
+              value: hasPricingData 
+                ? (zoneName ? `${zoneName} in $/MWh` : "Pricing in $/MWh")
+                : "Pricing unavailable",
               angle: 0, 
               position: "insideTopRight",
               offset: -23,
@@ -566,7 +566,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             hide={!visibility.solar}
           />
 
-          {/* Lines for LMP components (left Y-axis) */}
+          {/* Lines for LMP components (right Y-axis) */}
           <Line
             yAxisId="price"
             type="monotone"

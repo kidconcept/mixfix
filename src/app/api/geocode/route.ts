@@ -85,6 +85,34 @@ function getISOFromCoordinates(lat: number, lon: number): {
   else if (lat >= 32.5 && lat <= 42.0 && lon >= -124.5 && lon <= -114.1) {
     detectedISO = "CAISO";
   }
+  // FPL - Florida (most of the state)
+  else if (lat >= 24.5 && lat <= 31.0 && lon >= -87.6 && lon <= -80.0) {
+    detectedISO = "FPL";
+  }
+  // SOCO - Southern Company (GA, AL, MS)
+  else if (lat >= 30.2 && lat <= 35.0 && lon >= -91.7 && lon <= -81.0) {
+    detectedISO = "SOCO";
+  }
+  // DUK - Duke Energy Carolinas (NC, SC)
+  else if (lat >= 33.8 && lat <= 36.6 && lon >= -82.7 && lon <= -78.5) {
+    detectedISO = "DUK";
+  }
+  // TVA - Tennessee Valley Authority (TN, AL, MS, KY, GA, NC, VA)
+  else if (lat >= 33.0 && lat <= 37.5 && lon >= -90.3 && lon <= -81.6) {
+    detectedISO = "TVA";
+  }
+  // BPAT - Bonneville Power Administration (OR, WA, ID)
+  else if (lat >= 42.0 && lat <= 49.0 && lon >= -124.6 && lon <= -116.0) {
+    detectedISO = "BPAT";
+  }
+  // PACE - PacifiCorp East (Rocky Mountain states)
+  else if (lat >= 37.0 && lat <= 49.0 && lon >= -114.0 && lon <= -104.0) {
+    detectedISO = "PACE";
+  }
+  // PACW - PacifiCorp West (Pacific Northwest)
+  else if (lat >= 42.0 && lat <= 49.0 && lon >= -124.5 && lon <= -116.9) {
+    detectedISO = "PACW";
+  }
 
   if (!detectedISO) {
     return null;
