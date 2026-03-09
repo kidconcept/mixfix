@@ -441,7 +441,7 @@ export default function Home() {
   return (
     <>
     <SWRConfig value={swrConfig}>
-      <main className="min-h-screen p-6 md:p-10">
+      <main className="min-h-screen p-6 md:p-10 max-w-[1080px] w-full mx-auto">
         {/* All Fields - Inline Edit Style */}
         <div className="flex flex-wrap gap-6 items-baseline">
           {/* Brand */}
@@ -953,7 +953,7 @@ export default function Home() {
       </main>
       
       {/* Portrait-only footer branding */}
-      <div className="portrait-footer-brand">
+      <div className="portrait-footer-brand max-w-[1080px] w-full mx-auto">
         <div className="font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>mixfix</div>
       </div>
     </SWRConfig>
