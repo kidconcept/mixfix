@@ -42,6 +42,64 @@ Required keys:
 
 ---
 
+## Deployment (Vercel)
+
+Recommended path: connect this repo to Vercel for automatic production and preview deploys.
+
+### 1. Preflight
+
+```bash
+npm install
+npm run build
+```
+
+Make sure these environment variables are available in Vercel:
+- `EIA_API_KEY`
+- `GRID_API_KEY`
+
+### 2. Create the Vercel project
+
+1. Push this repo to GitHub.
+2. Go to Vercel and import the repository.
+3. Keep default Next.js settings.
+4. Set `main` as the production branch.
+
+### 3. Add environment variables
+
+In Vercel project settings, add each variable for:
+- `Production`
+- `Preview`
+
+Then redeploy.
+
+### 4. Smoke test deployed app
+
+Use your deployed URL and verify:
+
+```bash
+curl -s "https://<your-domain>/api/geocode?address=New+York+City"
+curl -s "https://<your-domain>/api/energy?location=FPL&date=2026-03-06"
+curl -s "https://<your-domain>/api/energy?location=NYISO&date=2026-03-06&view=pricing&node=N.Y.C."
+```
+
+Notes:
+- Pricing calls can return `429` when Grid Status quota is exceeded.
+- The app handles this and can fall back to mock pricing mode in UI.
+
+### 5. Custom domain
+
+1. Add your domain in Vercel project settings.
+2. Apply the DNS records shown by Vercel at your domain registrar.
+3. Wait for DNS propagation and HTTPS certificate issuance.
+4. Confirm your custom domain is set as production.
+
+### 6. Preview workflow
+
+With GitHub connected, each pull request gets a preview deployment URL automatically.
+Use preview deployments to validate UI/data changes before merging to `main`.
+
+---
+
 ## Project structure
 
 ```

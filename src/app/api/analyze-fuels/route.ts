@@ -179,13 +179,14 @@ export async function GET(request: Request) {
       let totalAtMax = 0;
 
       for (const result of results) {
-        if (result.stats && result.stats[field]) {
-          const stats = result.stats[field];
+        const statsMap = result.stats as Record<string, { max: number; maxTime: string; total: number; count: number; totalAtMax?: number }>;
+        if (statsMap[field]) {
+          const stats = statsMap[field];
           if (stats.max > maxValue) {
             maxValue = stats.max;
             maxRegion = result.region;
             maxHour = stats.maxTime;
-            totalAtMax = (stats as any).totalAtMax || 0;
+            totalAtMax = stats.totalAtMax || 0;
           }
         }
       }
