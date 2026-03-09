@@ -1,6 +1,11 @@
+'use client';
+
+import { useState } from 'react';
+
 /**
- * Simple one-line message component for displaying concise status information.
- * Messages should be brief and to the point - avoid verbose explanations.
+ * One-line message component with expandable read more/show less toggle (portrait only).
+ * Displays single line by default in portrait with option to expand for full content.
+ * Shows full content without truncation on desktop/landscape.
  */
 
 interface MessageProps {
@@ -10,9 +15,22 @@ interface MessageProps {
 }
 
 export default function Message({ children, type = 'info', className = '' }: MessageProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
     <div className={`text-left text-sm ${className}`} style={{ color: 'var(--text-primary)' }}>
-      {children}
+      <div className={isExpanded ? '' : 'message-container'}>
+        <span className={isExpanded ? '' : 'message-content'}>
+          {children}
+        </span>
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="message-toggle underline whitespace-nowrap"
+          style={{ color: 'var(--interactive-primary)' }}
+        >
+          {isExpanded ? 'Show less' : 'Read more'}
+        </button>
+      </div>
     </div>
   );
 }

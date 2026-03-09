@@ -140,3 +140,130 @@ input[type="date"] {
 .pulse-dash {
   animation: pulse-dash 1s infinite;
 }
+
+/* Portrait-only footer branding (hidden by default) */
+.portrait-footer-brand {
+  display: none;
+}
+
+/* Message component - full display by default, truncation only in portrait */
+.message-toggle {
+  display: none;
+}
+
+.message-container {
+  display: block;
+}
+
+.message-content {
+  display: inline;
+}
+
+/* Step 1: portrait media-query scaffold for targeted mobile overrides */
+@media (orientation: portrait) {
+  /* Step 2: hide mixfix brand in portrait. */
+  .mixfix-brand {
+    display: none;
+  }
+
+  /* Show portrait footer branding */
+  .portrait-footer-brand {
+    display: block;
+    text-align: center;
+    padding: 2rem 1.5rem 4rem 1.5rem;
+  }
+
+  /* Step 2: Message truncation with read more in portrait only */
+  .message-container {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+
+  .message-content {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .message-toggle {
+    display: inline-block;
+    flex-shrink: 0;
+    padding-left: 0.5rem;
+  }
+
+  /* Portrait tweak: tighten horizontal field spacing and keep each field <= 50%. */
+  .form-fields-group {
+    column-gap: 0;
+  }
+
+  .form-fields-group .form-field-block {
+    flex: 0 1 50%;
+    max-width: 50%;
+    min-width: 0;
+  }
+
+  .form-fields-group .form-field-shell,
+  .form-fields-group label {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .form-fields-group .form-field-shell {
+    width: 100%;
+  }
+
+  .form-fields-group input {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* Convert dropdowns to horizontally-centered modals in portrait */
+  .form-field-block > div > .absolute {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100vw - 2rem);
+    max-width: 400px;
+    min-width: 0;
+    max-height: 60vh;
+  }
+
+  /* Step 3: Extend only the chart full width in portrait. */
+  .chart-plot-area {
+    margin-left: -1.5rem;
+    margin-right: -1.5rem;
+  }
+
+  .chart-legend-area {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Step 4: Show Pricing/Mix categories in a wrapping row on portrait. */
+  .legend-groups-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+
+  .legend-group-block {
+    flex: 1 1 calc(33.333% - 0.5rem);
+    min-width: 0;
+  }
+
+  /* Step 5: Add breathing room between legend groups and Data Sources footer. */
+  .data-sources-footer {
+    margin-top: 2.25rem;
+  }
+
+  .legend-item-button {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}

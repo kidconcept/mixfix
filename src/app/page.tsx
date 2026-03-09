@@ -445,20 +445,20 @@ export default function Home() {
         {/* All Fields - Inline Edit Style */}
         <div className="flex flex-wrap gap-6 items-baseline">
           {/* Brand */}
-          <div className="flex flex-col">
-            <div className="text-xs px-2 invisible">_</div>
-            <div className="font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>mixfix</div>
+          <div className="flex flex-col mixfix-brand">
+            <div className="text-xs px-2 invisible mixfix-brand-spacer">_</div>
+            <div className="font-bold text-2xl mixfix-brand-title" style={{ color: 'var(--text-primary)' }}>mixfix</div>
           </div>
           
           {/* Form Fields Group - wraps together */}
-          <div className="flex flex-wrap gap-2 items-baseline">
+          <div className="flex flex-wrap gap-2 items-baseline form-fields-group">
           
           {/* Date Field */}
-          <div className="flex flex-col">
+          <div className="flex flex-col form-field-block">
             <label className="text-xs font-semibold px-2" style={{ color: 'var(--text-secondary)' }}>Date</label>
             <div className="flex items-center gap-0">
             <div 
-              className="relative inline-flex items-center border rounded-lg px-2 transition-all" 
+              className="relative inline-flex items-center border rounded-lg px-2 transition-all form-field-shell" 
               style={{ borderColor: (dateFocused || dateHovered) ? 'var(--active)' : 'transparent', height: '32px' }}
               onMouseEnter={() => setDateHovered(true)}
               onMouseLeave={() => setDateHovered(false)}
@@ -492,12 +492,12 @@ export default function Home() {
           </div>
 
           {/* Address Field */}
-          <div className="flex flex-col">
+          <div className="flex flex-col form-field-block">
             <label className="text-xs font-semibold px-2" style={{ color: 'var(--text-secondary)' }}>Location</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
-                className="relative inline-flex items-center border rounded-lg px-2 transition-all" 
+                className="relative inline-flex items-center border rounded-lg px-2 transition-all form-field-shell" 
                 style={{ borderColor: (addressFocused || addressHovered) ? 'var(--active)' : 'transparent', height: '32px' }}
                 onMouseEnter={() => setAddressHovered(true)}
                 onMouseLeave={() => setAddressHovered(false)}
@@ -553,12 +553,12 @@ export default function Home() {
           </div>
 
           {/* BA Field */}
-          <div className="flex flex-col">
+          <div className="flex flex-col form-field-block">
             <label className="text-xs font-semibold px-2" style={{ color: 'var(--text-secondary)' }}>BA</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
-                className="relative inline-flex items-center border rounded-lg px-2 transition-all" 
+                className="relative inline-flex items-center border rounded-lg px-2 transition-all form-field-shell" 
                 style={{ borderColor: (baFocused || baHovered) ? 'var(--active)' : 'transparent', height: '32px' }}
                 onMouseEnter={() => setBaHovered(true)}
                 onMouseLeave={() => setBaHovered(false)}
@@ -650,12 +650,12 @@ export default function Home() {
           </div>
 
           {/* Zone Field */}
-          <div className="flex flex-col">
+          <div className="flex flex-col form-field-block">
             <label className="text-xs font-semibold px-2" style={{ color: 'var(--text-secondary)', opacity: supportsPricing ? 1 : 0.5 }}>Zone</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
-                className="relative inline-flex items-center border rounded-lg px-2 transition-all" 
+                className="relative inline-flex items-center border rounded-lg px-2 transition-all form-field-shell" 
                 style={{ 
                   borderColor: (zoneFocused || zoneHovered) && supportsPricing ? 'var(--active)' : 'transparent', 
                   height: '32px',
@@ -752,7 +752,7 @@ export default function Home() {
         </div>
 
         {/* Data Display */}
-        <div className="mt-4">
+        <div className="mt-4 data-display-container">
           {/* Consolidated status messages */}
           {(() => {
             const messages: React.ReactNode[] = [];
@@ -881,7 +881,7 @@ export default function Home() {
                 zoneName={zone}
               />
               {(fuelMixData?.meta || pricingData?.meta || useMockPricing) && (
-                <div className="text-sm text-left space-y-1" style={{ color: 'var(--text-secondary)' }}>
+                <div className="text-sm text-left space-y-1 data-sources-footer" style={{ color: 'var(--text-secondary)' }}>
                   <div className="font-semibold" style={{ color: 'var(--text-primary)' }}>Data Sources:</div>
                   
                   {/* EIA API - Fuel Mix */}
@@ -951,6 +951,11 @@ export default function Home() {
           )}
         </div>
       </main>
+      
+      {/* Portrait-only footer branding */}
+      <div className="portrait-footer-brand">
+        <div className="font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>mixfix</div>
+      </div>
     </SWRConfig>
     </>
   );

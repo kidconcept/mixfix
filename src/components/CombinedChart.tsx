@@ -352,7 +352,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
       {/* Chart and Legend Side-by-Side */}
       <div className="flex flex-col landscape:flex-row gap-2">
         {/* Chart */}
-        <div className="flex-1">
+        <div className="flex-1 chart-plot-area">
           <ResponsiveContainer width="100%" height={500}>
         <ComposedChart
           data={combinedData}
@@ -638,7 +638,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
         </div>
         
         {/* Custom Grouped Legend */}
-        <div className="space-y-2 landscape:w-auto flex-shrink-0">
+        <div className="landscape:space-y-2 landscape:w-auto flex-shrink-0 legend-groups-container chart-legend-area">
         {LEGEND_GROUPS.map((group) => {
           // Filter items to only show those with data
           const itemsWithData = group.items.filter(item => hasDataForKey(item));
@@ -659,7 +659,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
           };
           
           return (
-            <div key={group.name}>
+            <div key={group.name} className="legend-group-block">
               {/* Group Header */}
               <button
                 onClick={toggleThisGroup}
@@ -712,7 +712,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
                     <button
                       key={item}
                       onClick={() => toggleItem(item)}
-                      className="flex items-center gap-2 px-3 py-1 rounded-md text-sm transition-all w-full"
+                      className="legend-item-button flex items-center gap-2 px-3 py-1 rounded-md text-sm transition-all w-full"
                       style={{
                         backgroundColor: isVisible ? 'var(--bg-secondary)' : 'var(--border-lighter)',
                         opacity: isVisible ? 1 : 0.5,
