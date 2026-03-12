@@ -43,3 +43,38 @@ export interface LMPDataPoint {
   loss: number; // $/MWh
 }
 
+export interface BATimezoneInfo {
+  iana: string;
+  shortName: string;
+  label: string;
+}
+
+export interface BAGeometryMapping {
+  baCode: string;
+  controlAreaName: string | null;
+  isMappable: boolean;
+  reason?: string;
+}
+
+export interface BAGeometryFeatureProperties {
+  NAME: string;
+  ID?: string;
+  [key: string]: string | number | null | undefined;
+}
+
+export interface BAGeometryPolygonGeometry {
+  type: "Polygon" | "MultiPolygon";
+  coordinates: number[][][] | number[][][][];
+}
+
+export interface BAGeometryFeature {
+  type: "Feature";
+  geometry: BAGeometryPolygonGeometry;
+  properties: BAGeometryFeatureProperties;
+}
+
+export interface BAGeometryFeatureCollection {
+  type: "FeatureCollection";
+  features: BAGeometryFeature[];
+}
+

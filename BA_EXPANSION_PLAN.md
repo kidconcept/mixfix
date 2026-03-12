@@ -123,10 +123,18 @@ Support **all 75 Balancing Authorities** for fuel mix data while providing **zon
 ### Phase 4: Address-Based Zone Selection (Optional)
 
 **Tasks:**
+- [ ] Replace legacy geocode region boxes with control-area geometry intersection as primary lookup
+- [ ] Remove/delete legacy geocode bounding-box fallback after geometry reliability is validated in production logs
+- [ ] Handle overlapping BA polygons with deterministic precedence rules (e.g., Santa Fe points that intersect both WALC and PNM)
+- [ ] Add overlap diagnostics/logging so ambiguous coordinate matches can be reviewed and corrected
+- [ ] Define a BA-level timezone strategy for multi-timezone footprints (representative display timezone + coordinate-derived local timezone for mapping/query windows)
+- [ ] Add timezone regression tests for edge BAs spanning multiple time zones and DST transitions
 - [ ] Manually curate zone boundaries for 7 ISOs (lat/lon rectangles)
 - [ ] Store boundaries in `config/zone-boundaries.json`
-- [ ] Update `/api/geocode` to map coordinates → zone for all 7 ISOs
+- [ ] Extend `/api/geocode` to return BA + resolved pricing zone where applicable
+- [ ] Validate returned zone against pricing-enabled BA config (`hasPricing`, `zones`, `representativeZone`)
 - [ ] Implement fallback to `representativeZone` if no match
+- [ ] Add end-to-end tests that verify address -> BA -> timezone -> pricing zone consistency
 - [ ] Test coverage for all US regions
 
 **Deliverables:**

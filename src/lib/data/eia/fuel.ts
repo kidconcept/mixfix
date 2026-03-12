@@ -13,8 +13,8 @@
 
 import { HistoricalRecord, EnergySource } from "@/types/energy";
 import { eiaQueue, RequestResult } from "../queue/requestQueue";
-import { getEIACode } from "../../config/balancing-authorities";
-import { convertUTCToLocalDate, convertUTCToLocalHour } from "../../timezone";
+import { getBATimezone, getEIACode } from "../../config/balancing-authorities";
+import { convertUTCToLocalDate, convertUTCToLocalHour, getUTCWindowForLocalDate } from "../../timezone";
 
 const EIA_BASE = "https://api.eia.gov/v2";
 const EIA_RTO_ENDPOINT = `${EIA_BASE}/electricity/rto/fuel-type-data/data/`;
@@ -157,17 +157,16 @@ function buildParams(apiKey: string, location: string, date: string): URLSearchP
   // Without this, we'd get 288 5-minute intervals (12x more data)
   params.set("frequency", "hourly");
   
-  // Time range in UTC: requested day through the following UTC day.
-  // We need this wider window because we later convert to local time and keep
-  // local hours 0-23 plus next day's local hour 0 (bucket 24).
-  const [year, month, day] = date.split('-').map(Number);
-  const nextDate = new Date(year, month - 1, day + 1);
-  const nextDayStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
-  const dayAfterNextDate = new Date(year, month - 1, day + 2);
-  const dayAfterNextStr = `${dayAfterNextDate.getFullYear()}-${String(dayAfterNextDate.getMonth() + 1).padStart(2, '0')}-${String(dayAfterNextDate.getDate()).padStart(2, '0')}`;
-  
-  params.set("start", `${date}T00`);
-  params.set("end", `${dayAfterNextStr}T00`);
+  // Convert selected local day to UTC query bounds.
+  // Include one extra hour after local midnight-next-day so hour 24 is captured.
+  const timezone = getBATimezone(location);
+  const utcWindow = getUTCWindowForLocalDate(date, timezone, {
+    bufferBeforeHours: 0,
+    bufferAfterHours: 1,
+  });
+
+  params.set("start", utcWindow.startUTCHour);
+  params.set("end", utcWindow.endUTCHour);
   
   // Sorting
   params.set("sort[0][column]", "period");
@@ -202,6 +201,7 @@ function buildParams(apiKey: string, location: string, date: string): URLSearchP
  */
 function transformEIAData(rows: EIARow[], date: string, location: string): HistoricalRecord[] {
   const hourlyMap = new Map<number, Map<EnergySource, number>>();
+  const timezone = getBATimezone(location);
   
   // Calculate next day for hour 24 mapping (simple string arithmetic to avoid timezone issues)
   const [year, month, day] = date.split('-').map(Number);
@@ -214,8 +214,8 @@ function transformEIAData(rows: EIARow[], date: string, location: string): Histo
     }
 
     // Convert EIA UTC period into local date/hour for the selected BA.
-    const localDate = convertUTCToLocalDate(row.period, location);
-    const localHour = convertUTCToLocalHour(row.period, location);
+    const localDate = convertUTCToLocalDate(row.period, timezone);
+    const localHour = convertUTCToLocalHour(row.period, timezone);
 
     // Keep 25-hour range: requested day hours 0-23 plus next-day hour 0 as bucket 24.
     let bucketHour: number | null = null;

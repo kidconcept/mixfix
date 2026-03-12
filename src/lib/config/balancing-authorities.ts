@@ -9,6 +9,7 @@
 
 import baConfig from '../../../config/balancing-authorities.json';
 import zoneBoundaries from '../../../config/zone-boundaries.json';
+import { BATimezoneInfo } from "@/types/energy";
 
 export interface BAConfig {
   code: string;
@@ -161,4 +162,38 @@ export function getZoneName(baCode: string, zoneCode: string): string | undefine
   
   const zoneBoundary = isoBoundaries.zones.find(z => z.zone === zoneCode);
   return zoneBoundary?.name || zoneCode;
+}
+
+export function isValidIANATimezone(timezone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getBATimezone(code: string): string {
+  const ba = getBAConfig(code);
+  if (!ba?.timezone) return "UTC";
+
+  // Hard guard against malformed timezone values in config.
+  return isValidIANATimezone(ba.timezone) ? ba.timezone : "UTC";
+}
+
+export function getBATimezoneInfo(code: string, date: Date = new Date()): BATimezoneInfo {
+  const iana = getBATimezone(code);
+
+  const shortName = new Intl.DateTimeFormat("en-US", {
+    timeZone: iana,
+    timeZoneName: "short",
+  })
+    .formatToParts(date)
+    .find((part) => part.type === "timeZoneName")?.value || iana;
+
+  return {
+    iana,
+    shortName,
+    label: `${iana} (${shortName})`,
+  };
 }

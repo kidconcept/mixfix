@@ -464,7 +464,7 @@
     "eiaCode": "PNM",
     "name": "Public Service Company of New Mexico",
     "type": "Regional",
-    "timezone": "America/New_York",
+    "timezone": "America/Denver",
     "hasPricing": false
   },
   "PSCO": {

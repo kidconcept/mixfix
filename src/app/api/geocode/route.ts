@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getRepresentativeZone } from "@/lib/config/balancing-authorities";
+import { getRepresentativeZone, hasPricingData } from "@/lib/config/balancing-authorities";
+import {
+  BA_GEOMETRY_MAP,
+  CONTROL_AREAS_ARCGIS_QUERY_URL,
+} from "@/lib/config/ba-geometry";
 import zoneBoundaries from "../../../../config/zone-boundaries.json";
 
 interface ZoneBoundary {
@@ -19,6 +23,18 @@ interface ISOZoneBoundaries {
 
 // Type assertion for imported JSON
 const boundaries: Record<string, ISOZoneBoundaries> = zoneBoundaries as Record<string, ISOZoneBoundaries>;
+
+const CONTROL_AREA_NAME_TO_BA: Record<string, string> = Object.values(BA_GEOMETRY_MAP).reduce(
+  (acc, mapping) => {
+    if (mapping.isMappable && mapping.controlAreaName) {
+      acc[mapping.controlAreaName] = mapping.baCode;
+    }
+    return acc;
+  },
+  {} as Record<string, string>
+);
+
+const LOW_PRIORITY_OVERLAY_BAS = new Set(["WACM", "WALC", "WAUW", "SEPA", "SPA"]);
 
 /**
  * Find the zone within an ISO that contains the given coordinates
@@ -130,6 +146,66 @@ function getISOFromCoordinates(lat: number, lon: number): {
   };
 }
 
+interface ArcGISPointQueryResponse {
+  features?: Array<{
+    attributes?: {
+      NAME?: string;
+      ID?: string;
+      [key: string]: string | number | null | undefined;
+    };
+  }>;
+}
+
+async function getBAFromGeometryIntersection(lat: number, lon: number): Promise<string | null> {
+  const geometry = JSON.stringify({
+    x: lon,
+    y: lat,
+    spatialReference: { wkid: 4326 },
+  });
+
+  const params = new URLSearchParams({
+    where: "1=1",
+    geometry,
+    geometryType: "esriGeometryPoint",
+    inSR: "4326",
+    spatialRel: "esriSpatialRelIntersects",
+    outFields: "NAME,ID",
+    returnGeometry: "false",
+    f: "json",
+  });
+
+  const response = await fetch(`${CONTROL_AREAS_ARCGIS_QUERY_URL}?${params.toString()}`, {
+    headers: {
+      "User-Agent": "MixFix-Energy-App",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Control-area query failed: ${response.status} ${response.statusText}`);
+  }
+
+  const data = (await response.json()) as ArcGISPointQueryResponse;
+  const candidateBAs = (data.features || [])
+    .map((feature) => feature.attributes?.NAME)
+    .filter((name): name is string => !!name)
+    .map((name) => CONTROL_AREA_NAME_TO_BA[name])
+    .filter((baCode): baCode is string => !!baCode);
+
+  if (candidateBAs.length === 0) return null;
+  if (candidateBAs.length === 1) return candidateBAs[0];
+
+  const prioritized = candidateBAs.find((baCode) => !LOW_PRIORITY_OVERLAY_BAS.has(baCode));
+  return prioritized || candidateBAs[0];
+}
+
+function getZoneForBA(baCode: string, lat: number, lon: number): string {
+  if (!hasPricingData(baCode)) {
+    return getRepresentativeZone(baCode) || "";
+  }
+
+  return findZoneByCoordinates(baCode, lat, lon) || getRepresentativeZone(baCode) || "";
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
@@ -146,7 +222,7 @@ export async function GET(request: Request) {
     // Use OpenStreetMap Nominatim for free geocoding
     const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
       address
-    )}&format=json&limit=1&addressdetails=1`;
+    )}&format=json&limit=1&addressdetails=1&countrycodes=us`;
 
     const response = await fetch(geocodeUrl, {
       headers: {
@@ -173,7 +249,26 @@ export async function GET(request: Request) {
     const lat = parseFloat(location.lat);
     const lon = parseFloat(location.lon);
 
-    // Determine ISO region from coordinates
+    let detectedBA: string | null = null;
+    try {
+      // Primary path: intersection against canonical control-area polygons.
+      detectedBA = await getBAFromGeometryIntersection(lat, lon);
+    } catch (geometryError) {
+      console.warn("Geometry BA lookup failed; falling back to legacy boxes", geometryError);
+    }
+
+    if (detectedBA) {
+      return NextResponse.json({
+        lat,
+        lon,
+        display_name: location.display_name,
+        address: location.address,
+        iso: detectedBA,
+        zone: getZoneForBA(detectedBA, lat, lon),
+      });
+    }
+
+    // Fallback path while legacy boxes are still retained.
     const isoData = getISOFromCoordinates(lat, lon);
 
     if (!isoData) {

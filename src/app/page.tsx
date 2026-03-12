@@ -3,11 +3,14 @@
 import CombinedChart from "@/components/CombinedChart";
 import Message from "@/components/Message";
 import ThemeSwitcher from "../components/ThemeSwitcher";
+import dynamic from "next/dynamic";
 import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
-import { getAllBAs, getZones, getZonesWithNames, hasPricingData, getRepresentativeZone } from "@/lib/config/balancing-authorities";
+import { getAllBAs, getBATimezoneInfo, getZonesWithNames, hasPricingData } from "@/lib/config/balancing-authorities";
 import { LMPDataPoint } from "@/types/energy";
+
+const BAMap = dynamic(() => import("@/components/BAMap"), { ssr: false });
 
 // Fetcher with timeout for client-side requests
 const fetcher = async (url: string) => {
@@ -140,6 +143,7 @@ export default function Home() {
   const [useMockPricing, setUseMockPricing] = useState(false);
   const [mockPricingData, setMockPricingData] = useState<LMPDataPoint[] | null>(null);
   const [gridStatusQuotaExceeded, setGridStatusQuotaExceeded] = useState(false);
+  const [showMapPanel, setShowMapPanel] = useState(false);
   
   // Derive SWR keys reactively from state - ensures chart always syncs with BA/Zone fields
   const fuelMixKey = location 
@@ -427,6 +431,7 @@ export default function Home() {
 
   // Check if current BA supports pricing
   const supportsPricing = hasPricingData(location);
+  const timezoneInfo = location ? getBATimezoneInfo(location) : null;
   
   // Data availability - show chart if we have either pricing or fuel mix data
   const hasPricingDataLoaded = !!pricingData || useMockPricing;
@@ -864,6 +869,34 @@ export default function Home() {
           </div>
           
         </div>{/* End Form Fields Group */}
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={!location}
+            onClick={() => setShowMapPanel((prev) => !prev)}
+            className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: showMapPanel ? "var(--active)" : "var(--bg-secondary)",
+              color: "var(--text-primary)",
+              border: "1px solid var(--border-subtle)",
+            }}
+          >
+            {showMapPanel ? "Hide BA Map" : "Show BA Map"}
+          </button>
+
+          {location && timezoneInfo && (
+            <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              {location} timezone: <span style={{ color: "var(--text-primary)" }}>{timezoneInfo.label}</span>
+            </div>
+          )}
+        </div>
+
+        {showMapPanel && location && (
+          <div className="mt-3">
+            <BAMap baCode={location} />
+          </div>
+        )}
 
         {/* Data Display */}
         <div className="mt-4 data-display-container">

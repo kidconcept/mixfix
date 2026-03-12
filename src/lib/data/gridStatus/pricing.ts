@@ -14,12 +14,12 @@
 
 import { LMPDataPoint } from "@/types/energy";
 import { gridStatusQueue, RequestResult } from "../queue/requestQueue";
-import { convertUTCToLocalHour, convertUTCToLocalDate } from "../../timezone";
+import { convertUTCToLocalHour, convertUTCToLocalDate, getUTCWindowForLocalDate } from "../../timezone";
 import { 
   hasPricingData, 
+  getBATimezone,
   getGridStatusDataset, 
   getRepresentativeZone,
-  getBAConfig 
 } from "../../config/balancing-authorities";
 
 const GRID_STATUS_BASE = "https://api.gridstatus.io/v1";
@@ -106,7 +106,8 @@ export async function fetchGridStatusPricing(
     : 'hourly';
 
   // Build query URL
-  const url = buildQueryURL(dataset, node, date);
+  const timezone = getBATimezone(isoUpper);
+  const url = buildQueryURL(dataset, node, date, timezone);
 
   // Execute request through queue with timeout and retry
   const result = await gridStatusQueue.request(
@@ -167,8 +168,8 @@ export async function fetchGridStatusPricing(
 
   // Transform and aggregate data
   const records = interval === 'hourly'
-    ? transformHourlyData(result.data, iso, date)
-    : transformSubHourlyData(result.data, iso, date);
+    ? transformHourlyData(result.data, timezone, date)
+    : transformSubHourlyData(result.data, timezone, date);
 
   return {
     success: true,
@@ -179,16 +180,16 @@ export async function fetchGridStatusPricing(
 /**
  * Build Grid Status API query URL
  */
-function buildQueryURL(dataset: string, node: string, date: string): string {
-  // Query time range: 12 hours before to 48 hours after local midnight
-  // This ensures we capture all data including next day's hour 0 for any US timezone (UTC-5 to UTC-8)
-  const localDate = new Date(date + 'T00:00:00');
-  const startTime = new Date(localDate.getTime() - 12 * 60 * 60 * 1000).toISOString();
-  const endTime = new Date(localDate.getTime() + 48 * 60 * 60 * 1000).toISOString();
+function buildQueryURL(dataset: string, node: string, date: string, timezone: string): string {
+  // Build UTC bounds from local day in BA timezone.
+  const utcWindow = getUTCWindowForLocalDate(date, timezone, {
+    bufferBeforeHours: 12,
+    bufferAfterHours: 12,
+  });
 
   const params = new URLSearchParams({
-    start_time: startTime,
-    end_time: endTime,
+    start_time: utcWindow.startUTCISO,
+    end_time: utcWindow.endUTCISO,
     filter_column: 'location',
     filter_value: node,
     limit: '200', // Enough for 24 hours × 4 intervals/hour = 96, with buffer
@@ -202,7 +203,7 @@ function buildQueryURL(dataset: string, node: string, date: string): string {
  */
 function transformHourlyData(
   rows: GridStatusLMPRow[],
-  iso: string,
+  timezone: string,
   date: string
 ): LMPDataPoint[] {
   const hourlyMap = new Map<number, GridStatusLMPRow>();
@@ -213,8 +214,8 @@ function transformHourlyData(
   const nextDayStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
 
   for (const row of rows) {
-    const localDate = convertUTCToLocalDate(row.interval_start_utc, iso);
-    const localHour = convertUTCToLocalHour(row.interval_start_utc, iso);
+    const localDate = convertUTCToLocalDate(row.interval_start_utc, timezone);
+    const localHour = convertUTCToLocalHour(row.interval_start_utc, timezone);
     
     // Include data for requested date OR hour 0 of next day (mapped to hour 24)
     if (localDate === date) {
@@ -257,7 +258,7 @@ function transformHourlyData(
  */
 function transformSubHourlyData(
   rows: GridStatusLMPRow[],
-  iso: string,
+  timezone: string,
   date: string
 ): LMPDataPoint[] {
   const hourlyMap = new Map<number, GridStatusLMPRow[]>();
@@ -269,8 +270,8 @@ function transformSubHourlyData(
 
   // Group by local hour
   for (const row of rows) {
-    const localDate = convertUTCToLocalDate(row.interval_start_utc, iso);
-    const localHour = convertUTCToLocalHour(row.interval_start_utc, iso);
+    const localDate = convertUTCToLocalDate(row.interval_start_utc, timezone);
+    const localHour = convertUTCToLocalHour(row.interval_start_utc, timezone);
     
     // Include data for requested date OR hour 0 of next day (mapped to hour 24)
     if (localDate === date) {
