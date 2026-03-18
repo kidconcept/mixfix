@@ -25,6 +25,7 @@ export const themes: Theme[] = [
       '--border-subtle': 'rgba(0, 0, 0, 0.1)',
       '--interactive-primary': '#2b8bd9',
       '--interactive-hover': '#bce3e7',
+      '--active': '#bce3e7',
       // Pricing: Warm oranges/reds
       '--price-lmp': '#d44a0e',
       '--price-energy': '#e8743f',
@@ -62,6 +63,7 @@ export const themes: Theme[] = [
       '--border-subtle': '#3b4f40',
       '--interactive-primary': '#86efac',
       '--interactive-hover': '#4ade80',
+      '--active': '#238b45',
       // Pricing: Warm yellows/amber
       '--price-lmp': '#fed976',
       '--price-energy': '#fecc5c',

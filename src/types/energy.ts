@@ -71,6 +71,7 @@ export interface BAGeometryFeature {
   type: "Feature";
   geometry: BAGeometryPolygonGeometry;
   properties: BAGeometryFeatureProperties;
+  area?: number; // Pre-calculated area in square meters (for overlap prioritization)
 }
 
 export interface BAGeometryFeatureCollection {

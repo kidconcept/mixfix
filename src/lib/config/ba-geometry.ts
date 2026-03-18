@@ -4,6 +4,7 @@ import {
   BAGeometryMapping,
 } from "@/types/energy";
 import { getBAConfig } from "@/lib/config/balancing-authorities";
+import { attachAreaToFeatures, sortBAFeaturesByArea } from "@/lib/geometryUtils";
 
 export const CONTROL_AREAS_ARCGIS_QUERY_URL =
   "https://services5.arcgis.com/HDRa0B57OVrv2E1q/arcgis/rest/services/Control_Areas/FeatureServer/0/query";
@@ -125,5 +126,35 @@ export async function fetchBAGeometryFeature(baCode: string): Promise<BAGeometry
     return null;
   }
 
-  return data.features[0];
+  const feature = data.features[0];
+  // Attach area for prioritization
+  attachAreaToFeatures([feature]);
+  return feature;
 }
+
+export async function fetchAllBAGeometries(): Promise<Record<string, BAGeometryFeature>> {
+  const mappableBAs = getMappableBAGeometryMappings();
+  const results: Record<string, BAGeometryFeature> = {};
+  
+  await Promise.all(
+    mappableBAs.map(async (mapping) => {
+      try {
+        const feature = await fetchBAGeometryFeature(mapping.baCode);
+        if (feature) {
+          results[mapping.baCode] = feature;
+        }
+      } catch (error) {
+        console.warn(`Failed to load geometry for ${mapping.baCode}:`, error);
+      }
+    })
+  );
+  
+  // Pre-calculate areas for all fetched geometries
+  const features = Object.values(results);
+  attachAreaToFeatures(features);
+  
+  return results;
+}
+
+// Re-export sortBAFeaturesByArea for use in components
+export { sortBAFeaturesByArea };

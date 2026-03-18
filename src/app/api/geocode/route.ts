@@ -3,6 +3,7 @@ import { getRepresentativeZone, hasPricingData } from "@/lib/config/balancing-au
 import {
   BA_GEOMETRY_MAP,
   CONTROL_AREAS_ARCGIS_QUERY_URL,
+  fetchBAGeometryFeature,
 } from "@/lib/config/ba-geometry";
 import zoneBoundaries from "../../../../config/zone-boundaries.json";
 
@@ -194,8 +195,51 @@ async function getBAFromGeometryIntersection(lat: number, lon: number): Promise<
   if (candidateBAs.length === 0) return null;
   if (candidateBAs.length === 1) return candidateBAs[0];
 
-  const prioritized = candidateBAs.find((baCode) => !LOW_PRIORITY_OVERLAY_BAS.has(baCode));
-  return prioritized || candidateBAs[0];
+  // Multiple BAs intersect this point - prioritize by area (smallest first)
+  console.log(`Multiple BAs intersect (${lat}, ${lon}):`, candidateBAs);
+
+  // Fetch full geometry features to access pre-calculated areas
+  const featuresWithAreas = await Promise.all(
+    candidateBAs.map(async (baCode) => {
+      const feature = await fetchBAGeometryFeature(baCode);
+      return { baCode, area: feature?.area ?? Infinity };
+    })
+  );
+
+  // Sort by area (smallest first)
+  featuresWithAreas.sort((a, b) => a.area - b.area);
+
+  // Log areas for debugging
+  console.log(
+    "BA areas (sq meters):",
+    featuresWithAreas.map((f) => `${f.baCode}: ${f.area.toLocaleString()}`)
+  );
+
+  // Apply hardcoded low-priority overlay check as tiebreaker:
+  // If the smallest BA is in the low-priority set and the second-smallest is not,
+  // and their areas are within 10% of each other, prefer the second one
+  if (featuresWithAreas.length >= 2) {
+    const smallest = featuresWithAreas[0];
+    const secondSmallest = featuresWithAreas[1];
+    const areaSimilarityThreshold = 0.1; // 10% difference
+    const areSimilar =
+      Math.abs(smallest.area - secondSmallest.area) / smallest.area < areaSimilarityThreshold;
+
+    if (
+      areSimilar &&
+      LOW_PRIORITY_OVERLAY_BAS.has(smallest.baCode) &&
+      !LOW_PRIORITY_OVERLAY_BAS.has(secondSmallest.baCode)
+    ) {
+      console.log(
+        `Applying hardcoded priority: preferring ${secondSmallest.baCode} over ${smallest.baCode}`
+      );
+      return secondSmallest.baCode;
+    }
+  }
+
+  const selected = featuresWithAreas[0].baCode;
+  console.log(`Selected smallest BA: ${selected}`);
+  return selected;
 }
 
 function getZoneForBA(baCode: string, lat: number, lon: number): string {

@@ -15,6 +15,7 @@ A Next.js webapp tracking and visualizing the global electricity generation mix 
 - Data fetching/transformation logic lives in `src/lib/energyData.ts`
 - The API route at `src/app/api/energy/route.ts` is the single backend entry point
 - Components are client components where interactivity is needed (`"use client"`)
+- **All colors must use CSS custom property theme variables** (e.g., `var(--text-primary)`, `var(--active)`, etc.) — never use hardcoded color values
 - Dark background: `--background: #0a0f1a`; use `bg-white/5` for card surfaces
 
 ## Data integration

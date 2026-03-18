@@ -12,6 +12,7 @@
     "populate-zones": "tsx scripts/populate-zones.ts"
   },
   "dependencies": {
+    "@turf/area": "^7.3.4",
     "leaflet": "^1.9.4",
     "next": "^16.1.6",
     "react": "^19.0.0",

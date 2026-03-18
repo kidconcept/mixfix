@@ -7,8 +7,9 @@ import dynamic from "next/dynamic";
 import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
-import { getAllBAs, getBATimezoneInfo, getZonesWithNames, hasPricingData } from "@/lib/config/balancing-authorities";
-import { LMPDataPoint } from "@/types/energy";
+import { getAllBAs, getBATimezoneInfo, getZonesWithNames, hasPricingData, getRepresentativeZone } from "@/lib/config/balancing-authorities";
+import { fetchAllBAGeometries } from "@/lib/config/ba-geometry";
+import { LMPDataPoint, BAGeometryFeature } from "@/types/energy";
 
 const BAMap = dynamic(() => import("@/components/BAMap"), { ssr: false });
 
@@ -144,6 +145,7 @@ export default function Home() {
   const [mockPricingData, setMockPricingData] = useState<LMPDataPoint[] | null>(null);
   const [gridStatusQuotaExceeded, setGridStatusQuotaExceeded] = useState(false);
   const [showMapPanel, setShowMapPanel] = useState(false);
+  const [cachedGeometries, setCachedGeometries] = useState<Record<string, BAGeometryFeature>>({});
   
   // Derive SWR keys reactively from state - ensures chart always syncs with BA/Zone fields
   const fuelMixKey = location 
@@ -286,6 +288,19 @@ export default function Home() {
     setIsLocating(false);
   };
 
+  // Handle BA selection from map click
+  const handleMapBAClick = (baCode: string) => {
+    setLocation(baCode);
+    setAddress(""); // Clear location field when BA changes
+    // Set representative zone for the new BA
+    const repZone = getRepresentativeZone(baCode);
+    if (repZone) {
+      setZone(repZone);
+    }
+    setFuelMixRetryCount(0);
+    setPricingRetryCount(0);
+  };
+
   // Load data on initial mount
   useEffect(() => {
     // Auto-populate address based on browser location
@@ -340,6 +355,44 @@ export default function Home() {
         }
       );
     }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Preload map geometries in the background for instant map loading
+  useEffect(() => {
+    let isMounted = true;
+
+    async function preloadMapGeometries() {
+      // Only load if we don't have them cached already
+      if (Object.keys(cachedGeometries).length === 0) {
+        try {
+          const geometries = await fetchAllBAGeometries();
+          if (isMounted) {
+            setCachedGeometries(geometries);
+          }
+        } catch (error) {
+          console.error("Error preloading map geometries:", error);
+          // Silently fail - geometries will load when map opens
+        }
+      }
+    }
+
+    // Start preloading after page load completes
+    const handleLoad = () => {
+      preloadMapGeometries();
+    };
+
+    if (document.readyState === 'complete') {
+      // Page already loaded
+      preloadMapGeometries();
+    } else {
+      // Wait for page to finish loading
+      window.addEventListener('load', handleLoad);
+    }
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('load', handleLoad);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: fuelMixData, isLoading: fuelMixLoading, error: fuelMixError } = useSWR(fuelMixKey, fetcher, {
@@ -444,14 +497,6 @@ export default function Home() {
   const statusMessageNode = (() => {
     const messages: React.ReactNode[] = [];
     let hasError = false;
-
-    // Geocoding status
-    if (geocodeMessage) {
-      // Success messages contain " → ", errors don't
-      const isError = !geocodeMessage.includes(" → ");
-      if (isError) hasError = true;
-      messages.push(geocodeMessage);
-    }
 
     // Non-ISO BA info
     if (!supportsPricing && location) {
@@ -579,7 +624,7 @@ export default function Home() {
             <div className="flex items-center gap-0">
             <div 
               className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
-              style={{ borderColor: (dateFocused || dateHovered) ? 'var(--active)' : 'transparent', height: '32px' }}
+              style={{ borderColor: (dateFocused || dateHovered) ? 'var(--active)' : 'var(--border-subtle)', height: '32px', paddingLeft: '3px' }}
               onMouseEnter={() => setDateHovered(true)}
               onMouseLeave={() => setDateHovered(false)}
             >
@@ -613,12 +658,12 @@ export default function Home() {
 
           {/* Address Field */}
           <div className="flex flex-col form-field-block">
-            <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)' }}>Location</label>
+            <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)' }}>Search by Location</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
                 className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
-                style={{ borderColor: (addressFocused || addressHovered) ? 'var(--active)' : 'transparent', height: '32px' }}
+                style={{ borderColor: (addressFocused || addressHovered) ? 'var(--active)' : 'var(--border-subtle)', height: '32px', paddingLeft: '3px' }}
                 onMouseEnter={() => setAddressHovered(true)}
                 onMouseLeave={() => setAddressHovered(false)}
               >
@@ -672,24 +717,27 @@ export default function Home() {
             </div>
           </div>
 
-          {/* BA Field */}
-          <div className="flex flex-col form-field-block">
-            <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)' }}>BA</label>
+          {/* Grid Area Controls Group */}
+          <div className="flex flex-wrap gap-2 items-baseline p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+            {/* BA Field */}
+            <div className="flex flex-col form-field-block">
+              <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)' }}>Grid Area (BA)</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
                 className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
-                style={{ borderColor: (baFocused || baHovered) ? 'var(--active)' : 'transparent', height: '32px' }}
+                style={{ borderColor: (baFocused || baHovered) ? 'var(--active)' : 'var(--border-subtle)', height: '32px', paddingLeft: '3px' }}
                 onMouseEnter={() => setBaHovered(true)}
                 onMouseLeave={() => setBaHovered(false)}
               >
                 {addressFocused ? (
-                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: '22px', minWidth: '80px' }}>--</span>
+                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: '22px' }}>--</span>
                 ) : (
                   <input
                     ref={baInputRef}
                     type="text"
                     value={baSearchTerm || location}
+                    size={Math.max((baSearchTerm || location || 'Select BA').length, 1)}
                     onChange={(e) => {
                       setBaSearchTerm(e.target.value);
                       setShowBADropdown(true);
@@ -712,9 +760,10 @@ export default function Home() {
                     }}
                     placeholder="Select BA"
                     className="font-medium focus:outline-none bg-transparent"
-                    style={{ color: 'var(--text-primary)', height: '22px', fieldSizing: 'content', minWidth: '80px' }}
+                    style={{ color: 'var(--text-primary)', height: '22px' }}
                   />
                 )}
+                <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: '18px' }}>▾</span>
               </div>
             </div>
             {showBADropdown && (
@@ -722,7 +771,7 @@ export default function Home() {
                 ref={baDropdownRef}
                 className="absolute z-10 mt-1 rounded-lg shadow-lg overflow-y-auto"
                 style={{ 
-                  backgroundColor: 'var(--background)',
+                  backgroundColor: 'var(--bg-primary)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderColor: 'var(--active)',
@@ -752,7 +801,17 @@ export default function Home() {
                         setFuelMixRetryCount(0);
                         setPricingRetryCount(0);
                       }}
-                      className="w-full text-left px-4 py-1.5 hover:bg-opacity-80 transition-colors"
+                      onMouseEnter={(e) => {
+                        if (location !== ba.code) {
+                          e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (location !== ba.code) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }
+                      }}
+                      className="w-full text-left px-4 py-1.5 transition-colors"
                       style={{ 
                         backgroundColor: location === ba.code ? 'var(--active)' : 'transparent',
                         color: 'var(--text-primary)'
@@ -777,20 +836,22 @@ export default function Home() {
               <div 
                 className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
                 style={{ 
-                  borderColor: (zoneFocused || zoneHovered) && supportsPricing ? 'var(--active)' : 'transparent', 
+                  borderColor: (zoneFocused || zoneHovered) && supportsPricing ? 'var(--active)' : 'var(--border-subtle)', 
                   height: '32px',
+                  paddingLeft: '3px',
                   opacity: supportsPricing ? 1 : 0.5
                 }}
                 onMouseEnter={() => setZoneHovered(true)}
                 onMouseLeave={() => setZoneHovered(false)}
               >
                 {addressFocused ? (
-                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: '22px', minWidth: '100px' }}>--</span>
+                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: '22px' }}>--</span>
                 ) : (
                   <input
                     ref={zoneInputRef}
                     type="text"
                     value={zoneSearchTerm || zone}
+                    size={Math.max((zoneSearchTerm || zone || (supportsPricing ? 'Select Zone' : 'N/A')).length, 1)}
                     onChange={(e) => {
                       setZoneSearchTerm(e.target.value);
                       setShowZoneDropdown(true);
@@ -816,9 +877,10 @@ export default function Home() {
                     placeholder={supportsPricing ? "Select Zone" : "N/A"}
                     disabled={!supportsPricing}
                     className="font-medium focus:outline-none bg-transparent disabled:cursor-not-allowed"
-                    style={{ color: 'var(--text-primary)', height: '22px', fieldSizing: 'content', minWidth: '100px' }}
+                    style={{ color: 'var(--text-primary)', height: '22px' }}
                   />
                 )}
+                <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: '18px' }}>▾</span>
               </div>
             </div>
             {showZoneDropdown && supportsPricing && (
@@ -826,7 +888,7 @@ export default function Home() {
                 ref={zoneDropdownRef}
                 className="absolute z-10 mt-1 rounded-lg shadow-lg overflow-y-auto"
                 style={{ 
-                  backgroundColor: 'var(--background)',
+                  backgroundColor: 'var(--bg-primary)',
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderColor: 'var(--active)',
@@ -851,7 +913,17 @@ export default function Home() {
                         setFuelMixRetryCount(0);
                         setPricingRetryCount(0);
                       }}
-                      className="w-full text-left px-4 py-1.5 hover:bg-opacity-80 transition-colors"
+                      onMouseEnter={(e) => {
+                        if (zone !== z.code) {
+                          e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (zone !== z.code) {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }
+                      }}
+                      className="w-full text-left px-4 py-1.5 transition-colors"
                       style={{ 
                         backgroundColor: zone === z.code ? 'var(--active)' : 'transparent',
                         color: 'var(--text-primary)'
@@ -867,36 +939,28 @@ export default function Home() {
             )}
             </div>
           </div>
+
+          {/* Map Toggle Button */}
+          <div className="flex flex-col form-field-block">
+            <label className="text-xs font-semibold pr-2" style={{ color: 'transparent' }}>.</label>
+            <button
+              type="button"
+              disabled={!location}
+              onClick={() => setShowMapPanel((prev) => !prev)}
+              className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: showMapPanel ? "var(--active)" : "var(--bg-primary)",
+                color: "var(--text-primary)",
+                border: "1px solid var(--border-subtle)",
+                height: '32px',
+              }}
+            >
+              {showMapPanel ? "Hide Grid Area Map" : "Grid Area Map"}
+            </button>
+          </div>
+          </div>{/* End Grid Area Controls Group */}
           
         </div>{/* End Form Fields Group */}
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={!location}
-            onClick={() => setShowMapPanel((prev) => !prev)}
-            className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              backgroundColor: showMapPanel ? "var(--active)" : "var(--bg-secondary)",
-              color: "var(--text-primary)",
-              border: "1px solid var(--border-subtle)",
-            }}
-          >
-            {showMapPanel ? "Hide BA Map" : "Show BA Map"}
-          </button>
-
-          {location && timezoneInfo && (
-            <div className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              {location} timezone: <span style={{ color: "var(--text-primary)" }}>{timezoneInfo.label}</span>
-            </div>
-          )}
-        </div>
-
-        {showMapPanel && location && (
-          <div className="mt-3">
-            <BAMap baCode={location} />
-          </div>
-        )}
 
         {/* Data Display */}
         <div className="mt-4 data-display-container">
@@ -986,6 +1050,56 @@ export default function Home() {
       <div className="portrait-footer-brand max-w-[1080px] w-full mx-auto">
         <div className="font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>mixfix</div>
       </div>
+
+      {/* Map Modal */}
+      {showMapPanel && location && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
+          onClick={() => setShowMapPanel(false)}
+        >
+          <div 
+            className="relative rounded-lg shadow-2xl overflow-hidden"
+            style={{ 
+              backgroundColor: 'var(--bg-primary)',
+              width: '80vw',
+              maxHeight: '90vh'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div 
+              className="flex items-center justify-between px-4 py-3 border-b"
+              style={{ 
+                backgroundColor: 'var(--bg-secondary)',
+                borderColor: 'var(--border-subtle)'
+              }}
+            >
+              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Grid Area Map: {location}
+              </h2>
+              <button
+                onClick={() => setShowMapPanel(false)}
+                className="text-2xl leading-none hover:opacity-70 transition-opacity"
+                style={{ color: 'var(--text-primary)' }}
+                aria-label="Close modal"
+              >
+                ×
+              </button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="p-4" style={{ height: 'calc(90vh - 60px)' }}>
+              <BAMap 
+                baCode={location} 
+                onBAClick={handleMapBAClick}
+                cachedGeometries={cachedGeometries}
+                onGeometriesLoaded={setCachedGeometries}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </SWRConfig>
     </>
   );
