@@ -605,7 +605,7 @@ export default function Home() {
   return (
     <>
     <SWRConfig value={swrConfig}>
-      <main className="min-h-screen p-6 md:p-10 max-w-[1080px] w-full mx-auto">
+      <main className="min-h-screen w-[80%] mx-auto" style={{ padding: 'clamp(1.5rem, 2vw, 4rem) clamp(1rem, 2vw, 3rem)' }}>
         {/* Top Row: Brand + Status Message */}
         <div className="flex flex-wrap gap-4 items-baseline">
           <div className="font-bold text-2xl mixfix-brand-title" style={{ color: 'var(--text-primary)' }}>mixfix</div>
@@ -620,11 +620,11 @@ export default function Home() {
           
           {/* Date Field */}
           <div className="flex flex-col form-field-block">
-            <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)' }}>Date</label>
+            <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Date</label>
             <div className="flex items-center gap-0">
             <div 
               className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
-              style={{ borderColor: (dateFocused || dateHovered) ? 'var(--active)' : 'var(--border-subtle)', height: '32px', paddingLeft: '3px' }}
+              style={{ borderColor: (dateFocused || dateHovered) ? 'var(--active)' : 'var(--border-subtle)', height: 'var(--form-height)', paddingLeft: '3px' }}
               onMouseEnter={() => setDateHovered(true)}
               onMouseLeave={() => setDateHovered(false)}
             >
@@ -650,7 +650,7 @@ export default function Home() {
                   }
                 }}
                 className="font-medium focus:outline-none bg-transparent"
-                style={{ color: 'var(--text-primary)', height: '22px', fieldSizing: 'content' }}
+                style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)', fieldSizing: 'content' }}
               />
             </div>
             </div>
@@ -658,12 +658,12 @@ export default function Home() {
 
           {/* Address Field */}
           <div className="flex flex-col form-field-block">
-            <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)' }}>Search by Location</label>
+            <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Search by Location</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
                 className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
-                style={{ borderColor: (addressFocused || addressHovered) ? 'var(--active)' : 'var(--border-subtle)', height: '32px', paddingLeft: '3px' }}
+                style={{ borderColor: (addressFocused || addressHovered) ? 'var(--active)' : 'var(--border-subtle)', height: 'var(--form-height)', paddingLeft: '3px' }}
                 onMouseEnter={() => setAddressHovered(true)}
                 onMouseLeave={() => setAddressHovered(false)}
               >
@@ -687,7 +687,7 @@ export default function Home() {
                   }}
                   placeholder="City, County, State"
                   className="font-medium focus:outline-none bg-transparent"
-                  style={{ color: 'var(--text-primary)', height: '22px', fieldSizing: 'content' }}
+                  style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)', fieldSizing: 'content' }}
                 />
                 <button
                   type="button"
@@ -700,9 +700,9 @@ export default function Home() {
                     addressInputRef.current?.blur();
                   }}
                   className="ml-2 hover:opacity-70 transition-opacity"
-                  style={{ 
-                    color: 'var(--interactive-primary)', 
-                    fontSize: '18px',
+                  style={{
+                    color: 'var(--interactive-primary)',
+                    fontSize: 'var(--font-form-base)',
                     opacity: (addressFocused && address) ? 1 : 0,
                     pointerEvents: (addressFocused && address) ? 'auto' : 'none',
                     visibility: (addressFocused && address) ? 'visible' : 'hidden'
@@ -721,17 +721,17 @@ export default function Home() {
           <div className="flex flex-wrap gap-2 items-baseline p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
             {/* BA Field */}
             <div className="flex flex-col form-field-block">
-              <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)' }}>Grid Area (BA)</label>
+              <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Grid</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
                 className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
-                style={{ borderColor: (baFocused || baHovered) ? 'var(--active)' : 'var(--border-subtle)', height: '32px', paddingLeft: '3px' }}
+                style={{ borderColor: (baFocused || baHovered) ? 'var(--active)' : 'var(--border-subtle)', height: 'var(--form-height)', paddingLeft: '3px' }}
                 onMouseEnter={() => setBaHovered(true)}
                 onMouseLeave={() => setBaHovered(false)}
               >
                 {addressFocused ? (
-                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: '22px' }}>--</span>
+                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: 'var(--input-height)' }}>--</span>
                 ) : (
                   <input
                     ref={baInputRef}
@@ -760,10 +760,10 @@ export default function Home() {
                     }}
                     placeholder="Select BA"
                     className="font-medium focus:outline-none bg-transparent"
-                    style={{ color: 'var(--text-primary)', height: '22px' }}
+                    style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)' }}
                   />
                 )}
-                <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: '18px' }}>▾</span>
+                <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-base)' }}>▾</span>
               </div>
             </div>
             {showBADropdown && (
@@ -775,7 +775,7 @@ export default function Home() {
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderColor: 'var(--active)',
-                  minWidth: '300px',
+                  minWidth: 'var(--dropdown-min-width)',
                   maxHeight: '240px'
                 }}
               >
@@ -830,14 +830,14 @@ export default function Home() {
 
           {/* Zone Field */}
           <div className="flex flex-col form-field-block">
-            <label className="text-xs font-semibold pr-2" style={{ color: 'var(--text-secondary)', opacity: supportsPricing ? 1 : 0.5 }}>Zone</label>
+            <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)', opacity: supportsPricing ? 1 : 0.5 }}>Zone</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
                 className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
                 style={{ 
                   borderColor: (zoneFocused || zoneHovered) && supportsPricing ? 'var(--active)' : 'var(--border-subtle)', 
-                  height: '32px',
+                  height: 'var(--form-height)',
                   paddingLeft: '3px',
                   opacity: supportsPricing ? 1 : 0.5
                 }}
@@ -845,7 +845,7 @@ export default function Home() {
                 onMouseLeave={() => setZoneHovered(false)}
               >
                 {addressFocused ? (
-                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: '22px' }}>--</span>
+                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: 'var(--input-height)' }}>--</span>
                 ) : (
                   <input
                     ref={zoneInputRef}
@@ -877,10 +877,10 @@ export default function Home() {
                     placeholder={supportsPricing ? "Select Zone" : "N/A"}
                     disabled={!supportsPricing}
                     className="font-medium focus:outline-none bg-transparent disabled:cursor-not-allowed"
-                    style={{ color: 'var(--text-primary)', height: '22px' }}
+                    style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)' }}
                   />
                 )}
-                <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: '18px' }}>▾</span>
+                <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-base)' }}>▾</span>
               </div>
             </div>
             {showZoneDropdown && supportsPricing && (
@@ -892,7 +892,7 @@ export default function Home() {
                   borderWidth: '1px',
                   borderStyle: 'solid',
                   borderColor: 'var(--active)',
-                  minWidth: '300px',
+                  minWidth: 'var(--dropdown-min-width)',
                   maxHeight: '240px'
                 }}
               >
@@ -942,20 +942,24 @@ export default function Home() {
 
           {/* Map Toggle Button */}
           <div className="flex flex-col form-field-block">
-            <label className="text-xs font-semibold pr-2" style={{ color: 'transparent' }}>.</label>
+            <label className="font-semibold pr-2" style={{ color: 'transparent', fontSize: 'var(--font-form-xs)' }}>.</label>
             <button
               type="button"
               disabled={!location}
               onClick={() => setShowMapPanel((prev) => !prev)}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: showMapPanel ? "var(--active)" : "var(--bg-primary)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-subtle)",
-                height: '32px',
+                height: 'var(--form-height)',
+                fontSize: 'var(--font-form-base)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}
             >
-              {showMapPanel ? "Hide Grid Area Map" : "Grid Area Map"}
+              {showMapPanel ? "Hide Area Map" : "Area Map"}
             </button>
           </div>
           </div>{/* End Grid Area Controls Group */}
@@ -1076,7 +1080,7 @@ export default function Home() {
               }}
             >
               <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                Grid Area Map: {location}
+                Area Map: {location}
               </h2>
               <button
                 onClick={() => setShowMapPanel(false)}

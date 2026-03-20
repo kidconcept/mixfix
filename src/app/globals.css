@@ -85,6 +85,31 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: clamp(1rem, 0.75rem + 0.625vw, 2rem);
+}
+
+/* Fluid scaling for large viewports */
+:root {
+  --font-xs: clamp(0.75rem, 0.5rem + 0.4vw, 1.5rem);
+  --font-sm: clamp(0.875rem, 0.625rem + 0.45vw, 1.75rem);
+  --font-base: clamp(1rem, 0.75rem + 0.625vw, 2rem);
+  --font-lg: clamp(1.125rem, 0.8rem + 0.65vw, 2.25rem);
+  --font-xl: clamp(1.25rem, 0.875rem + 0.75vw, 2.5rem);
+  --font-2xl: clamp(1.5rem, 1rem + 1vw, 3.5rem);
+  
+  --spacing-fluid: clamp(0.5rem, 0.3rem + 0.75vw, 2.5rem);
+  --spacing-fluid-sm: clamp(0.375rem, 0.2rem + 0.5vw, 1.875rem);
+  --spacing-fluid-md: clamp(0.75rem, 0.5rem + 0.9vw, 3rem);
+  --spacing-fluid-lg: clamp(1rem, 0.6rem + 1.2vw, 4rem);
+  
+  /* Form element sizing */
+  --form-height: clamp(32px, 1rem + 0.9vw, 96px);
+  --input-height: clamp(22px, 0.7rem + 0.65vw, 66px);
+  --dropdown-min-width: clamp(300px, 12rem + 3vw, 900px);
+  
+  /* Form-specific fonts (20% smaller than standard) */
+  --font-form-xs: clamp(0.6rem, 0.55rem + 0.32vw, 1.2rem);
+  --font-form-base: clamp(0.8rem, 0.6rem + 0.5vw, 1.6rem);
 }
 
 /* Input placeholder colors */
@@ -164,7 +189,12 @@ input[type="date"] {
 }
 
 /* Step 1: portrait media-query scaffold for targeted mobile overrides */
-@media (orientation: portrait) {
+@media (max-width: 768px) and (orientation: portrait) {
+  /* Mobile: Full-width main container */
+  main {
+    width: 100% !important;
+  }
+
   /* Step 2: hide mixfix brand in portrait. */
   .mixfix-brand {
     display: none;
@@ -198,14 +228,10 @@ input[type="date"] {
     padding-left: 0.5rem;
   }
 
-  /* Portrait tweak: tighten horizontal field spacing and keep each field <= 50%. */
-  .form-fields-group {
-    column-gap: 0;
-  }
-
+  /* Portrait form layout: Date/Location on row 1, Grid Area controls on row 2 */
   .form-fields-group .form-field-block {
-    flex: 0 1 50%;
-    max-width: 50%;
+    flex: 0 0 auto;
+    max-width: none;
     min-width: 0;
   }
 
@@ -216,12 +242,18 @@ input[type="date"] {
   }
 
   .form-fields-group .form-field-shell {
-    width: 100%;
+    width: auto;
   }
 
   .form-fields-group input {
     max-width: 100%;
     min-width: 0;
+  }
+
+  /* Grid Area Controls Group takes full width to wrap to new row */
+  .form-fields-group > div[style*="background"] {
+    flex: 0 0 100%;
+    width: 100%;
   }
 
   /* Convert dropdowns to horizontally-centered modals in portrait */
@@ -237,8 +269,9 @@ input[type="date"] {
 
   /* Step 3: Extend only the chart full width in portrait. */
   .chart-plot-area {
-    margin-left: -1.5rem;
-    margin-right: -1.5rem;
+    margin-left: 0;
+    margin-right: 0;
+    flex: none; /* Override flex-1 on mobile to prevent sizing issues */
   }
 
   .chart-legend-area {

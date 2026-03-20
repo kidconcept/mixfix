@@ -132,7 +132,7 @@ const CustomTooltip = ({
         return (
           <div key={index} style={{ 
             color: "var(--text-primary)", 
-            fontSize: "14px",
+            fontSize: "var(--font-sm)",
             display: "flex",
             alignItems: "center",
             gap: "6px"
@@ -352,8 +352,8 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
       {/* Chart and Legend Side-by-Side */}
       <div className="flex flex-col landscape:flex-row landscape:gap-6 gap-2">
         {/* Chart */}
-        <div className="flex-1 chart-plot-area">
-          <ResponsiveContainer width="100%" height={500}>
+        <div className="flex-1 chart-plot-area" style={{ height: '55vh', minHeight: '400px', maxHeight: '80vh' }}>
+          <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={combinedData}
           margin={{
@@ -374,9 +374,9 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
               offset: -10, 
               fill: "var(--text-primary)", 
               fontWeight: 400,
-              fontSize: 14
+              fontSize: "var(--font-sm)"
             }}
-            tick={{ fill: "var(--text-primary)" }}
+            tick={{ fill: "var(--text-primary)", fontSize: "var(--font-xs)" }}
             tickFormatter={(value) => (value % 2 === 0 && value !== 0 && value !== 24) ? value.toString() : ''}
             height={40}
           />
@@ -385,7 +385,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
           <YAxis 
             yAxisId="generation"
             stroke="var(--text-primary)"
-            tick={{ fill: "var(--text-primary)" }}
+            tick={{ fill: "var(--text-primary)", fontSize: "var(--font-xs)" }}
             width={40}
             label={{ 
               value: baName ? `${baName} mix in GW` : "Generation in GW", 
@@ -395,7 +395,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
               dx: 65,
               fill: "var(--text-primary)", 
               fontWeight: 400,
-              fontSize: 14,
+              fontSize: "var(--font-sm)",
               textAnchor: "start"
             }}
           />
@@ -405,7 +405,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             yAxisId="price"
             orientation="right"
             stroke="var(--text-primary)"
-            tick={{ fill: "var(--text-primary)" }}
+            tick={{ fill: "var(--text-primary)", fontSize: "var(--font-xs)" }}
             width={40}
             domain={hasPricingData ? undefined : [0, 3]}
             ticks={hasPricingData ? undefined : [0, 1, 2, 3]}
@@ -420,7 +420,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
               dx: -60,
               fill: "var(--text-primary)", 
               fontWeight: 400,
-              fontSize: 14,
+              fontSize: "var(--font-sm)",
               textAnchor: "end"
             }}
           />
