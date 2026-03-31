@@ -354,7 +354,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
         <ComposedChart
           data={combinedData}
           margin={{
-            top: 30,
+            top: 0,
             right: 0,
             left: 0,
             bottom: 25,
@@ -400,20 +400,16 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             orientation="right"
             stroke="var(--text-primary)"
             tick={{ fill: "var(--text-primary)", fontSize: "var(--font-xs)" }}
-            width={40}
-            domain={hasPricingData ? undefined : [0, 3]}
-            ticks={hasPricingData ? undefined : [0, 1, 2, 3]}
-            tickFormatter={(value) => hasPricingData ? value : ''}
-            label={{ 
-              value: hasPricingData 
-                ? (zoneName ? `${zoneName} in $/MWh` : "Pricing in $/MWh")
-                : "Pricing unavailable",
+            width={hasPricingData ? 40 : 0}
+            hide={!hasPricingData}
+            label={hasPricingData ? { 
+              value: zoneName ? `${zoneName} in $/MWh` : "Pricing in $/MWh",
               angle: 90, 
               position: "insideRight",
               fill: "var(--text-primary)", 
               fontWeight: 400,
               fontSize: "var(--font-sm)"
-            }}
+            } : undefined}
           />
           
           <Tooltip content={<CustomTooltip keysWithData={keysWithData} />} />
@@ -567,7 +563,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             dot={{ fill: "var(--price-lmp)", r: 2 }}
             name="LMP"
             connectNulls
-            hide={!visibility.lmp}
+            hide={!hasPricingData || !visibility.lmp}
           />
           <Line
             yAxisId="price"
@@ -578,7 +574,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             dot={false}
             name="Energy"
             connectNulls
-            hide={!visibility.energy}
+            hide={!hasPricingData || !visibility.energy}
           />
           <Line
             yAxisId="price"
@@ -589,7 +585,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             dot={false}
             name="Congestion"
             connectNulls
-            hide={!visibility.congestion}
+            hide={!hasPricingData || !visibility.congestion}
           />
           <Line
             yAxisId="price"
@@ -600,7 +596,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             dot={false}
             name="Loss"
             connectNulls
-            hide={!visibility.loss}
+            hide={!hasPricingData || !visibility.loss}
           />
           
           {/* Zero reference line for clarity when showing charging */}

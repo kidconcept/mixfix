@@ -7,9 +7,9 @@ import dynamic from "next/dynamic";
 import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
-import { getAllBAs, getBATimezoneInfo, getZonesWithNames, hasPricingData, getRepresentativeZone } from "@/lib/config/balancing-authorities";
+import { getAllBAs, getZonesWithNames, hasPricingData, getRepresentativeZone } from "@/lib/config/balancing-authorities";
 import { fetchAllBAGeometries } from "@/lib/config/ba-geometry";
-import { LMPDataPoint, BAGeometryFeature } from "@/types/energy";
+import { BAGeometryFeature } from "@/types/energy";
 
 const BAMap = dynamic(() => import("@/components/BAMap"), { ssr: false });
 
@@ -130,7 +130,7 @@ export default function Home() {
   const [zoneSearchTerm, setZoneSearchTerm] = useState("");
   const [address, setAddress] = useState<string>("");
   const [isLocating, setIsLocating] = useState(false);
-  const [geocodeMessage, setGeocodeMessage] = useState<string>("");
+
   const [dateFocused, setDateFocused] = useState(false);
   const [dateHovered, setDateHovered] = useState(false);
   const [addressFocused, setAddressFocused] = useState(false);
@@ -141,8 +141,6 @@ export default function Home() {
   const [zoneHovered, setZoneHovered] = useState(false);
   const [fuelMixRetryCount, setFuelMixRetryCount] = useState(0);
   const [pricingRetryCount, setPricingRetryCount] = useState(0);
-  const [useMockPricing, setUseMockPricing] = useState(false);
-  const [mockPricingData, setMockPricingData] = useState<LMPDataPoint[] | null>(null);
   const [gridStatusQuotaExceeded, setGridStatusQuotaExceeded] = useState(false);
   const [showMapPanel, setShowMapPanel] = useState(false);
   const [cachedGeometries, setCachedGeometries] = useState<Record<string, BAGeometryFeature>>({});
@@ -183,53 +181,8 @@ export default function Home() {
     }
   }, [showZoneDropdown]);
 
-  // Generate mock pricing data for development/testing
-  const generateMockPricingData = (date: string): LMPDataPoint[] => {
-    const hours = Array.from({ length: 25 }, (_, i) => i); // 0-24 for 25-hour cycle
-    return hours.map(hour => {
-      // For hour 24, use the same date but hour 24 (matches EIA pattern)
-      const timeStr = `${date}T${String(hour).padStart(2, '0')}:00:00`;
-      
-      // Simulate typical daily pricing pattern
-      // Higher during peak hours (8am-8pm), lower at night
-      const hourOfDay = hour % 24;
-      const isPeak = hourOfDay >= 8 && hourOfDay <= 20;
-      const baseLMP = isPeak ? 45 : 25;
-      const variation = Math.random() * 20 - 10;
-      
-      const lmp = baseLMP + variation;
-      const energy = lmp * 0.85; // Energy is typically ~85% of LMP
-      const congestion = Math.random() * 5 - 2.5; // Small congestion component
-      const loss = lmp - energy - congestion; // Loss is the remainder
-      
-      return {
-        time: timeStr,
-        lmp: Number(lmp.toFixed(2)),
-        energy: Number(energy.toFixed(2)),
-        congestion: Number(congestion.toFixed(2)),
-        loss: Number(loss.toFixed(2)),
-      };
-    });
-  };
-
-  // Enable mock pricing data
-  const handleEnableMockPricing = () => {
-    const mockData = generateMockPricingData(date);
-    setMockPricingData(mockData);
-    setUseMockPricing(true);
-  };
-
-  // Update mock pricing data when date changes (but keep mock pricing enabled)
-  useEffect(() => {
-    if (useMockPricing) {
-      const mockData = generateMockPricingData(date);
-      setMockPricingData(mockData);
-    }
-  }, [date, useMockPricing]);
-
   const handleLocate = async () => {
     setIsLocating(true);
-    setGeocodeMessage("");
 
     try {
       const response = await fetch(
@@ -241,7 +194,6 @@ export default function Home() {
         // Reset BA/Zone when geocoding fails (e.g., address not found).
         setLocation("");
         setZone("");
-        setGeocodeMessage(data.error || "Failed to geocode address");
         return;
       }
 
@@ -253,26 +205,16 @@ export default function Home() {
         } else if (data.zone) {
           setZone(data.zone);
         }
-        const zoneDisplay = data.suggestedNode || data.zone;
-        setGeocodeMessage(
-          `${address} → ${data.iso}${zoneDisplay ? ` / ${zoneDisplay}` : ""}`
-        );
         console.log("Geocode result:", { iso: data.iso, zone: data.zone, suggestedNode: data.suggestedNode });
       } else {
         // No BA/Zone found - reset fields and show error in Location field
         setAddress("BA/Zone not found");
         setLocation("");
         setZone("");
-        if (data.message && data.message !== "No address provided") {
-          setGeocodeMessage(data.message);
-        } else {
-          setGeocodeMessage("Location not found or not within a balancing authority");
-        }
       }
     } catch (error) {
       setLocation("");
       setZone("");
-      setGeocodeMessage("Error locating address");
       console.error("Geocode error:", error);
     } finally {
       setIsLocating(false);
@@ -337,10 +279,7 @@ export default function Home() {
                   } else if (geocodeData.zone) {
                     setZone(geocodeData.zone);
                   }
-                  const zoneDisplay = geocodeData.suggestedNode || geocodeData.zone;
-                  setGeocodeMessage(
-                    `${autoAddress} → ${geocodeData.iso}${zoneDisplay ? ` / ${zoneDisplay}` : ""}`
-                  );
+
                 }
               } catch (error) {
                 console.error("Error auto-populating ISO/Node:", error);
@@ -484,15 +423,12 @@ export default function Home() {
 
   // Check if current BA supports pricing
   const supportsPricing = hasPricingData(location);
-  const timezoneInfo = location ? getBATimezoneInfo(location) : null;
-  
   // Data availability - show chart if we have either pricing or fuel mix data
-  const hasPricingDataLoaded = !!pricingData || useMockPricing;
+  const hasPricingDataLoaded = !!pricingData;
   const hasFuelMixData = !!fuelMixData;
   const hasAnyData = hasPricingDataLoaded || hasFuelMixData; // Show chart with any available data
 
-  // Use mock pricing data if enabled, otherwise use real data
-  const displayPricingData = useMockPricing ? mockPricingData : pricingData?.lmp;
+  const displayPricingData = pricingData?.lmp;
 
   const statusMessageNode = (() => {
     const messages: React.ReactNode[] = [];
@@ -532,35 +468,15 @@ export default function Home() {
     }
 
     // Pricing error with fuel mix fallback
-    if (supportsPricing && !pricingData && (pricingError || gridStatusQuotaExceeded) && hasFuelMixData && !useMockPricing) {
+    if (supportsPricing && !pricingData && (pricingError || gridStatusQuotaExceeded) && hasFuelMixData) {
       hasError = true;
-      if (pricingError?.message?.includes("quota exceeded") || pricingError?.message?.includes("limit reached") || gridStatusQuotaExceeded) {
-        messages.push(
-          <>
-            Pricing unavailable due to quota limits.{" "}
-            <button
-              onClick={handleEnableMockPricing}
-              className="underline transition-colors"
-              style={{ color: 'var(--text-primary)' }}
-              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--interactive-primary)'}
-              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
-            >
-              Show mock pricing
-            </button>
-          </>
-        );
-      } else {
-        messages.push(
-          pricingError?.message?.includes("Rate limit")
+      messages.push(
+        pricingError?.message?.includes("quota exceeded") || pricingError?.message?.includes("limit reached") || gridStatusQuotaExceeded
+          ? "Pricing unavailable due to quota limits"
+          : pricingError?.message?.includes("Rate limit")
             ? "Pricing temporarily unavailable (rate limit)"
             : "Pricing unavailable"
-        );
-      }
-    }
-
-    // Mock pricing active
-    if (supportsPricing && useMockPricing && hasFuelMixData) {
-      messages.push("Showing mock pricing");
+      );
     }
 
     // Fuel mix loading (secondary)
@@ -991,7 +907,7 @@ export default function Home() {
                 baName={location}
                 zoneName={zone}
               />
-              {(fuelMixData?.meta || pricingData?.meta || useMockPricing) && (
+              {(fuelMixData?.meta || pricingData?.meta) && (
                 <div className="text-sm text-left space-y-1 data-sources-footer" style={{ color: 'var(--text-secondary)' }}>
                   <div className="font-semibold" style={{ color: 'var(--text-primary)' }}>Data Sources:</div>
                   
@@ -1017,7 +933,7 @@ export default function Home() {
                   )}
                   
                   {/* Grid Status API - Pricing */}
-                  {pricingData?.meta && !useMockPricing && (
+                  {pricingData?.meta && (
                     <div className="flex flex-wrap items-center gap-x-2">
                       <a
                         href="https://www.gridstatus.io"
@@ -1038,21 +954,6 @@ export default function Home() {
                     </div>
                   )}
                   
-                  {/* Mock Pricing Data */}
-                  {useMockPricing && (
-                    <div className="flex flex-wrap items-center gap-x-2">
-                      <span className="font-semibold" style={{ color: 'var(--interactive-primary)' }}>
-                        Mock Pricing Data
-                      </span>
-                      <span>→</span>
-                      <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                        {location} / Zone: {zone}
-                      </span>
-                      <span>→</span>
-                      <span>Simulated LMP data for demonstration</span>
-                    </div>
-                  )}
-
                   <div className="pt-1">
                     <ThemeSwitcher />
                   </div>
