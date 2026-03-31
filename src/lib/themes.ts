@@ -38,8 +38,8 @@ export const themes: Theme[] = [
       '--fuel-geothermal': '#71c0bf',
       '--fuel-biomass': '#88b2b4',
       '--fuel-batteries': '#589797',
-      '--fuel-imports': '#204d46',
-      '--fuel-other': '#082926',
+      '--fuel-imports': '#2e6265',
+      '--fuel-other': '#1a5564',
       '--fuel-charging': '#ea9424',
       // Consumables: Muted greys
       '--fuel-coal': '#cec8c9',

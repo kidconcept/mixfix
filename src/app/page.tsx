@@ -968,6 +968,19 @@ export default function Home() {
 
         {/* Data Display */}
         <div className="mt-4 data-display-container">
+          {/* Loading animation while waiting for data */}
+          {!hasAnyData && (
+            <div className="flex items-center justify-center" style={{ minHeight: '400px' }}>
+              <video
+                src="/images/bolt.webm"
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{ width: '120px', height: '120px' }}
+              />
+            </div>
+          )}
           {/* Render chart when any data is available */}
           {hasAnyData && (
             <>

@@ -236,14 +236,11 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
     if (!match) return "";
     
     const date = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
-    const options: Intl.DateTimeFormatOptions = { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    };
-    const formattedDate = date.toLocaleDateString('en-US', options);
+    const month = date.toLocaleDateString('en-US', { month: 'long' });
+    const day = date.getDate();
     const tz = location ? getTimezoneAbbreviation(location) : "";
-    return tz ? `${formattedDate} (${tz})` : formattedDate;
+    const datePart = `${month} ${day}`;
+    return tz ? `Hours (${datePart}, ${tz})` : `Hours (${datePart})`;
   };
 
   // Process fuel mix data by hour (already normalized to local hour buckets)
@@ -359,7 +356,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
           margin={{
             top: 30,
             right: 0,
-            left: -10,
+            left: 0,
             bottom: 25,
           }}
         >
@@ -388,15 +385,12 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             tick={{ fill: "var(--text-primary)", fontSize: "var(--font-xs)" }}
             width={40}
             label={{ 
-              value: baName ? `${baName} mix in GW` : "Generation in GW", 
-              angle: 0, 
-              position: "insideTopLeft",
-              offset: -23,
-              dx: 65,
+              value: "Generation in GW", 
+              angle: -90, 
+              position: "insideLeft",
               fill: "var(--text-primary)", 
               fontWeight: 400,
-              fontSize: "var(--font-sm)",
-              textAnchor: "start"
+              fontSize: "var(--font-sm)"
             }}
           />
           
@@ -414,14 +408,11 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
               value: hasPricingData 
                 ? (zoneName ? `${zoneName} in $/MWh` : "Pricing in $/MWh")
                 : "Pricing unavailable",
-              angle: 0, 
-              position: "insideTopRight",
-              offset: -23,
-              dx: -60,
+              angle: 90, 
+              position: "insideRight",
               fill: "var(--text-primary)", 
               fontWeight: 400,
-              fontSize: "var(--font-sm)",
-              textAnchor: "end"
+              fontSize: "var(--font-sm)"
             }}
           />
           
