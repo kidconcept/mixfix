@@ -69,7 +69,7 @@ const BALANCING_AUTHORITY_MAP: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 export async function fetchEIAHourly(
-  location: string | null,
+  balancingAuthority: string | null,
   date: string // YYYY-MM-DD
 ): Promise<HistoricalRecord[]> {
   const apiKey = process.env.EIA_API_KEY;
@@ -80,8 +80,8 @@ export async function fetchEIAHourly(
   p.set("end", `${date}T23`);
   p.set("length", "200"); // Strict limit: max ~8 fuel types × 24 hours = 192 rows
 
-  if (location) {
-    const upperLoc = location.toUpperCase();
+  if (balancingAuthority) {
+    const upperLoc = balancingAuthority.toUpperCase();
     // Check if it's a balancing authority first
     if (BALANCING_AUTHORITY_MAP[upperLoc]) {
       p.append("facets[respondent][]", BALANCING_AUTHORITY_MAP[upperLoc]);

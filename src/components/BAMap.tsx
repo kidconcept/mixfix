@@ -4,270 +4,413 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import L from "leaflet";
 import { GeoJSON, MapContainer, TileLayer, Tooltip } from "react-leaflet";
-import { fetchBAGeometryFeature, fetchAllBAGeometries, getBAGeometryMapping, sortBAFeaturesByArea } from "@/lib/config/ba-geometry";
-import { getBAConfig } from "@/lib/config/balancing-authorities";
+import { fetchBAGeometryFeature, fetchAllBAGeometries, getBAGeometryMapping } from "@/lib/config/ba-geometry";
+import { getBAConfig, getAllBAs, getZonesWithNames, hasPricingData, getRepresentativeZone } from "@/lib/config/balancing-authorities";
 import { BAGeometryFeature } from "@/types/energy";
 
 interface BAMapProps {
-  baCode: string;
-  onBAClick?: (baCode: string) => void;
-  cachedGeometries?: Record<string, BAGeometryFeature>;
-  onGeometriesLoaded?: (geometries: Record<string, BAGeometryFeature>) => void;
+  isOpen: boolean;
+  onClose: () => void;
+  balancingAuthority: string;
+  zone: string;
+  onBalancingAuthorityChange: (code: string) => void;
+  onZoneChange: (code: string) => void;
 }
 
 const DEFAULT_CENTER: [number, number] = [39.5, -98.35];
 const DEFAULT_ZOOM = 4;
 
-export default function BAMap({ baCode, onBAClick, cachedGeometries, onGeometriesLoaded }: BAMapProps) {
-  const [feature, setFeature] = useState<BAGeometryFeature | null>(null);
-  const [allFeatures, setAllFeatures] = useState<Record<string, BAGeometryFeature>>(cachedGeometries || {});
+export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBalancingAuthorityChange, onZoneChange }: BAMapProps) {
+  const allBAs = getAllBAs();
+
+  // Map state
+  const [allFeatures, setAllFeatures] = useState<Record<string, BAGeometryFeature>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [map, setMap] = useState<LeafletMap | null>(null);
   const [hoveredBA, setHoveredBA] = useState<string | null>(null);
-  
-  // Track whether we've loaded all geometries to avoid re-fetching
-  const hasLoadedAll = useRef(false);
 
-  const mapping = useMemo(() => getBAGeometryMapping(baCode), [baCode]);
-  const baConfig = useMemo(() => getBAConfig(baCode), [baCode]);
+  // Dropdown state
+  const [showBADropdown, setShowBADropdown] = useState(false);
+  const [baSearchTerm, setBaSearchTerm] = useState("");
+  const [baFocused, setBaFocused] = useState(false);
+  const [baHovered, setBaHovered] = useState(false);
+  const [showZoneDropdown, setShowZoneDropdown] = useState(false);
+  const [zoneSearchTerm, setZoneSearchTerm] = useState("");
+  const [zoneFocused, setZoneFocused] = useState(false);
+  const [zoneHovered, setZoneHovered] = useState(false);
+
+  const hasLoadedAll = useRef(false);
+  const baInputRef = useRef<HTMLInputElement>(null);
+  const zoneInputRef = useRef<HTMLInputElement>(null);
+  const baDropdownRef = useRef<HTMLDivElement>(null);
+  const selectedBARef = useRef<HTMLButtonElement>(null);
+  const zoneDropdownRef = useRef<HTMLDivElement>(null);
+  const selectedZoneRef = useRef<HTMLButtonElement>(null);
+
+  const mapping = useMemo(() => getBAGeometryMapping(balancingAuthority), [balancingAuthority]);
+  const baConfig = useMemo(() => getBAConfig(balancingAuthority), [balancingAuthority]);
+  const supportsPricing = hasPricingData(balancingAuthority);
 
   // Sort features by area (largest to smallest) so smaller polygons render on top
   const sortedFeatures = useMemo(() => {
-    const features = Object.entries(allFeatures).map(([code, feature]) => ({
-      code,
-      feature,
-    }));
-    
-    // Sort by area descending (largest first) so they're rendered first
-    // In Leaflet/SVG, later elements appear on top
-    features.sort((a, b) => {
-      const areaA = a.feature.area ?? Infinity;
-      const areaB = b.feature.area ?? Infinity;
-      return areaB - areaA; // Descending: largest first
-    });
-    
+    const features = Object.entries(allFeatures).map(([code, feature]) => ({ code, feature }));
+    features.sort((a, b) => (b.feature.area ?? Infinity) - (a.feature.area ?? Infinity));
     return features;
   }, [allFeatures]);
 
-  // Load all BA geometries with priority for the selected BA
+  // Scroll selected BA into center view when dropdown opens
+  useEffect(() => {
+    if (showBADropdown && selectedBARef.current && baDropdownRef.current) {
+      setTimeout(() => {
+        selectedBARef.current?.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }, 0);
+    }
+  }, [showBADropdown]);
+
+  // Scroll selected zone into center view when dropdown opens
+  useEffect(() => {
+    if (showZoneDropdown && selectedZoneRef.current && zoneDropdownRef.current) {
+      setTimeout(() => {
+        selectedZoneRef.current?.scrollIntoView({ block: 'center', behavior: 'auto' });
+      }, 0);
+    }
+  }, [showZoneDropdown]);
+
+  // Preload all BA geometries in the background on mount
   useEffect(() => {
     let isMounted = true;
 
-    async function loadGeometries() {
-      try {
-        // First, load the selected BA immediately if it's not already loaded
-        if (baCode && !allFeatures[baCode]) {
-          const selectedGeometry = await fetchBAGeometryFeature(baCode);
-          if (isMounted && selectedGeometry) {
-            setAllFeatures(prev => ({ ...prev, [baCode]: selectedGeometry }));
-          }
-        }
-
-        // Only load all geometries once
-        if (!hasLoadedAll.current) {
-          hasLoadedAll.current = true;
-          // Only fetch if we don't have a good cache already
-          const hasCache = Object.keys(allFeatures).length > 50;
-          if (!hasCache) {
+    async function preload() {
+      if (!hasLoadedAll.current) {
+        hasLoadedAll.current = true;
+        const hasCache = Object.keys(allFeatures).length > 50;
+        if (!hasCache) {
+          try {
             const geometries = await fetchAllBAGeometries();
-            if (isMounted) {
-              setAllFeatures(geometries);
-              // Notify parent of loaded geometries for caching
-              if (onGeometriesLoaded) {
-                onGeometriesLoaded(geometries);
-              }
-            }
+            if (isMounted) setAllFeatures(geometries);
+          } catch (err) {
+            console.error("Failed to preload BA geometries:", err);
           }
         }
-      } catch (err) {
-        console.error("Failed to load BA geometries:", err);
       }
     }
 
-    loadGeometries();
+    if (document.readyState === 'complete') {
+      preload();
+    } else {
+      const handleLoad = () => preload();
+      window.addEventListener('load', handleLoad);
+      return () => {
+        isMounted = false;
+        window.removeEventListener('load', handleLoad);
+      };
+    }
 
-    return () => {
-      isMounted = false;
-    };
-  }, [baCode]);
+    return () => { isMounted = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update selected BA geometry when baCode changes
+  // Load geometry for the currently selected BA
   useEffect(() => {
-    if (!baCode) {
-      setFeature(null);
+    if (!balancingAuthority) {
       setError(null);
       setIsLoading(false);
       return;
     }
 
     if (!mapping || !mapping.isMappable) {
-      setFeature(null);
       setError(mapping?.reason || "No geometry mapping available for this BA");
       setIsLoading(false);
       return;
     }
 
-    // Use already-loaded geometry from allFeatures if available
-    if (allFeatures[baCode]) {
-      setFeature(allFeatures[baCode]);
+    if (allFeatures[balancingAuthority]) {
       setError(null);
       setIsLoading(false);
-    } else {
-      // If not loaded yet, fetch it
-      setIsLoading(true);
-      setError(null);
-      
-      fetchBAGeometryFeature(baCode)
-        .then((geometry) => {
-          if (!geometry) {
-            setFeature(null);
-            setError("No geometry found for this BA");
-            return;
-          }
-          setFeature(geometry);
-        })
-        .catch((err) => {
-          const message = err instanceof Error ? err.message : "Failed to load BA geometry";
-          setError(message);
-          setFeature(null);
-        })
-        .finally(() => {
-          setIsLoading(false);
-        });
+      return;
     }
-  }, [baCode, mapping, allFeatures]);
 
+    let isMounted = true;
+    setIsLoading(true);
+    setError(null);
+
+    fetchBAGeometryFeature(balancingAuthority)
+      .then((geometry) => {
+        if (!isMounted) return;
+        if (!geometry) {
+          setError("No geometry found for this BA");
+          return;
+        }
+        setAllFeatures(prev => ({ ...prev, [balancingAuthority]: geometry }));
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        setError(err instanceof Error ? err.message : "Failed to load BA geometry");
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => { isMounted = false; };
+  }, [balancingAuthority, mapping]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-zoom to selected BA whenever it or its geometry changes
   useEffect(() => {
-    if (!map || !baCode || !allFeatures[baCode]) return;
-
-    const layer = L.geoJSON(allFeatures[baCode] as GeoJSON.Feature);
+    if (!map || !balancingAuthority || !allFeatures[balancingAuthority]) return;
+    const layer = L.geoJSON(allFeatures[balancingAuthority] as GeoJSON.Feature);
     const bounds = layer.getBounds();
+    if (bounds.isValid()) map.fitBounds(bounds.pad(0.15));
+  }, [map, balancingAuthority, allFeatures]);
 
-    if (bounds.isValid()) {
-      map.fitBounds(bounds.pad(0.15));
-    }
-  }, [map, baCode, allFeatures]);
+  if (!isOpen) return null;
 
   return (
     <div
-      className="rounded-xl overflow-hidden"
-      style={{
-        backgroundColor: "var(--bg-primary)",
-        width: '100%',
-        height: '100%'
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
+      onClick={onClose}
     >
       <div
-        className="px-4 py-3"
-        style={{
-          borderBottom: "1px solid var(--border-lighter)",
-          color: "var(--text-secondary)",
-        }}
+        className="relative rounded-lg shadow-2xl overflow-hidden"
+        style={{ backgroundColor: 'var(--bg-primary)', width: '80vw', maxHeight: '90vh' }}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-base font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
-          {baConfig?.name || baCode}
-        </div>
-        <div className="text-sm leading-relaxed">
-          A Balancing Authority (BA) is a regional grid operator responsible for maintaining electricity supply and demand balance in real-time. 
-          The energy mix shown represents generation sources across this entire control area.
-        </div>
-      </div>
-
-      <div className="w-full relative" style={{ height: 'calc(100% - 88px)' }}>
-        <MapContainer
-          center={DEFAULT_CENTER}
-          zoom={DEFAULT_ZOOM}
-          style={{ height: "100%", width: "100%" }}
-          scrollWheelZoom={true}
-          ref={setMap}
+        {/* Modal Header */}
+        <div
+          className="flex items-center justify-between px-4 py-3 border-b"
+          style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-subtle)' }}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Grid Map{balancingAuthority ? `: ${baConfig?.name || balancingAuthority}` : ''}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-2xl leading-none hover:opacity-70 transition-opacity"
+            style={{ color: 'var(--text-primary)' }}
+            aria-label="Close modal"
+          >
+            ×
+          </button>
+        </div>
 
-          {/* Render all BA boundaries in grey */}
-          {sortedFeatures.map(({ code, feature: geoFeature }) => {
-            // Skip the selected BA, we'll render it separately
-            if (code === baCode) return null;
-            
-            const isHovered = hoveredBA === code;
-            
-            return (
-              <GeoJSON
-                key={code}
-                data={geoFeature as GeoJSON.Feature}
-                style={{
-                  color: isHovered ? "#28cf7e" : "#ada6a6",
-                  weight: isHovered ? 2 : 1,
-                  fillColor: isHovered ? "#28cf7e" : "#ada6a6",
-                  fillOpacity: isHovered ? 0.25 : 0.12,
-                }}
-                eventHandlers={{
-                  mouseover: () => setHoveredBA(code),
-                  mouseout: () => setHoveredBA(null),
-                  click: () => {
-                    if (onBAClick) {
-                      onBAClick(code);
-                    }
-                  },
-                }}
+        {/* Modal Content */}
+        <div style={{ height: 'calc(90vh - 60px)', display: 'flex', flexDirection: 'column' }}>
+
+          {/* Grid and Zone selectors */}
+          <div
+            className="flex flex-wrap gap-4 px-4 py-3 shrink-0"
+            style={{ borderBottom: '1px solid var(--border-subtle)' }}
+          >
+            {/* BA Field */}
+            <div className="flex flex-col form-field-block">
+              <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Grid</label>
+              <div className="relative">
+                <div className="flex items-center gap-0">
+                  <div
+                    className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell"
+                    style={{ borderColor: (baFocused || baHovered) ? 'var(--active)' : 'var(--border-subtle)', height: 'var(--form-height)', paddingLeft: '3px' }}
+                    onMouseEnter={() => setBaHovered(true)}
+                    onMouseLeave={() => setBaHovered(false)}
+                  >
+                    <input
+                      ref={baInputRef}
+                      type="text"
+                      value={baSearchTerm || balancingAuthority}
+                      size={Math.max((baSearchTerm || balancingAuthority || 'Select BA').length, 1)}
+                      onChange={(e) => { setBaSearchTerm(e.target.value); setShowBADropdown(true); }}
+                      onFocus={(e) => { setBaFocused(true); setShowBADropdown(true); e.target.select(); }}
+                      onBlur={() => { setBaFocused(false); setTimeout(() => setShowBADropdown(false), 200); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                      placeholder="Select BA"
+                      className="font-medium focus:outline-none bg-transparent"
+                      style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)' }}
+                    />
+                    <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-base)' }}>▾</span>
+                  </div>
+                </div>
+                {showBADropdown && (
+                  <div
+                    ref={baDropdownRef}
+                    className="absolute z-10 mt-1 rounded-lg shadow-lg overflow-y-auto"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--active)', minWidth: 'var(--dropdown-min-width)', maxHeight: '240px' }}
+                  >
+                    {allBAs
+                      .filter(ba => !baSearchTerm || ba.code.toLowerCase().includes(baSearchTerm.toLowerCase()) || ba.name.toLowerCase().includes(baSearchTerm.toLowerCase()))
+                      .map(ba => (
+                        <button
+                          key={ba.code}
+                          ref={balancingAuthority === ba.code ? selectedBARef : null}
+                          onClick={() => {
+                            onBalancingAuthorityChange(ba.code);
+                            setBaSearchTerm('');
+                            setShowBADropdown(false);
+                            if (ba.hasPricing && ba.representativeZone) onZoneChange(ba.representativeZone);
+                          }}
+                          onMouseEnter={(e) => { if (balancingAuthority !== ba.code) e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'; }}
+                          onMouseLeave={(e) => { if (balancingAuthority !== ba.code) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                          className="w-full text-left px-4 py-1.5 transition-colors"
+                          style={{ backgroundColor: balancingAuthority === ba.code ? 'var(--active)' : 'transparent', color: 'var(--text-primary)' }}
+                        >
+                          <div className="text-base">{ba.name}</div>
+                          <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>{ba.code} {ba.hasPricing && '• Pricing Available'}</div>
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Zone Field */}
+            <div className="flex flex-col form-field-block">
+              <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)', opacity: supportsPricing ? 1 : 0.5 }}>Zone</label>
+              <div className="relative">
+                <div className="flex items-center gap-0">
+                  <div
+                    className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell"
+                    style={{ borderColor: (zoneFocused || zoneHovered) && supportsPricing ? 'var(--active)' : 'var(--border-subtle)', height: 'var(--form-height)', paddingLeft: '3px', opacity: supportsPricing ? 1 : 0.5 }}
+                    onMouseEnter={() => setZoneHovered(true)}
+                    onMouseLeave={() => setZoneHovered(false)}
+                  >
+                    <input
+                      ref={zoneInputRef}
+                      type="text"
+                      value={zoneSearchTerm || zone}
+                      size={Math.max((zoneSearchTerm || zone || (supportsPricing ? 'Select Zone' : 'N/A')).length, 1)}
+                      onChange={(e) => { setZoneSearchTerm(e.target.value); setShowZoneDropdown(true); }}
+                      onFocus={(e) => { setZoneFocused(true); if (supportsPricing) setShowZoneDropdown(true); e.target.select(); }}
+                      onBlur={() => { setZoneFocused(false); setTimeout(() => setShowZoneDropdown(false), 200); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                      placeholder={supportsPricing ? 'Select Zone' : 'N/A'}
+                      disabled={!supportsPricing}
+                      className="font-medium focus:outline-none bg-transparent disabled:cursor-not-allowed"
+                      style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)' }}
+                    />
+                    <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-base)' }}>▾</span>
+                  </div>
+                </div>
+                {showZoneDropdown && supportsPricing && (
+                  <div
+                    ref={zoneDropdownRef}
+                    className="absolute z-10 mt-1 rounded-lg shadow-lg overflow-y-auto"
+                    style={{ backgroundColor: 'var(--bg-primary)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--active)', minWidth: 'var(--dropdown-min-width)', maxHeight: '240px' }}
+                  >
+                    {getZonesWithNames(balancingAuthority)
+                      .filter(z => !zoneSearchTerm || z.code.toLowerCase().includes(zoneSearchTerm.toLowerCase()) || z.name.toLowerCase().includes(zoneSearchTerm.toLowerCase()))
+                      .map(z => (
+                        <button
+                          key={z.code}
+                          ref={zone === z.code ? selectedZoneRef : null}
+                          onClick={() => { onZoneChange(z.code); setZoneSearchTerm(''); setShowZoneDropdown(false); }}
+                          onMouseEnter={(e) => { if (zone !== z.code) e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'; }}
+                          onMouseLeave={(e) => { if (zone !== z.code) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                          className="w-full text-left px-4 py-1.5 transition-colors"
+                          style={{ backgroundColor: zone === z.code ? 'var(--active)' : 'transparent', color: 'var(--text-primary)' }}
+                        >
+                          <div className="text-base">{z.name}</div>
+                          <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>{z.code}</div>
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Info header + Map */}
+          <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
+            <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)', width: '100%', height: '100%' }}>
+              <div
+                className="px-4 py-3"
+                style={{ borderBottom: '1px solid var(--border-lighter)', color: 'var(--text-secondary)' }}
               >
-                <Tooltip sticky direction="center" opacity={0.95}>
-                  {geoFeature.properties.NAME}
-                </Tooltip>
-              </GeoJSON>
-            );
-          })}
+                <div className="text-base font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+                  {baConfig?.name || balancingAuthority || 'Select a Grid'}
+                </div>
+                <div className="text-sm leading-relaxed">
+                  A Balancing Authority (BA) is a regional grid operator responsible for maintaining electricity supply and demand balance in real-time.
+                  The energy mix shown represents generation sources across this entire control area.
+                </div>
+              </div>
 
-          {/* Render selected BA with highlight */}
-          {baCode && allFeatures[baCode] && (
-            <GeoJSON
-              key={`selected-${baCode}`}
-              data={allFeatures[baCode] as GeoJSON.Feature}
-              style={{
-                color: "#2b8bd9",
-                weight: 2,
-                fillColor: "#2b8bd9",
-                fillOpacity: 0.28,
-              }}
-              eventHandlers={{
-                click: () => {
-                  // Clicking currently selected BA does nothing (could close modal in future)
-                },
-              }}
-            >
-              <Tooltip sticky direction="center" opacity={0.95}>
-                {allFeatures[baCode].properties.NAME}
-              </Tooltip>
-            </GeoJSON>
-          )}
-        </MapContainer>
+              <div className="w-full relative" style={{ height: 'calc(100% - 88px)' }}>
+                <MapContainer
+                  center={DEFAULT_CENTER}
+                  zoom={DEFAULT_ZOOM}
+                  style={{ height: '100%', width: '100%' }}
+                  scrollWheelZoom={true}
+                  ref={setMap}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
 
-        {isLoading && (
-          <div
-            className="absolute inset-0 flex items-center justify-center text-sm"
-            style={{
-              backgroundColor: "rgba(10, 15, 26, 0.16)",
-              color: "var(--text-primary)",
-            }}
-          >
-            Loading BA geometry...
+                  {/* All non-selected BA boundaries */}
+                  {sortedFeatures.map(({ code, feature: geoFeature }) => {
+                    if (code === balancingAuthority) return null;
+                    const isHovered = hoveredBA === code;
+                    return (
+                      <GeoJSON
+                        key={code}
+                        data={geoFeature as GeoJSON.Feature}
+                        style={{
+                          color: isHovered ? '#28cf7e' : '#ada6a6',
+                          weight: isHovered ? 2 : 1,
+                          fillColor: isHovered ? '#28cf7e' : '#ada6a6',
+                          fillOpacity: isHovered ? 0.25 : 0.12,
+                        }}
+                        eventHandlers={{
+                          mouseover: () => setHoveredBA(code),
+                          mouseout: () => setHoveredBA(null),
+                          click: () => {
+                            const repZone = getRepresentativeZone(code);
+                            onBalancingAuthorityChange(code);
+                            if (repZone) onZoneChange(repZone);
+                          },
+                        }}
+                      >
+                        <Tooltip sticky direction="center" opacity={0.95}>
+                          {geoFeature.properties.NAME}
+                        </Tooltip>
+                      </GeoJSON>
+                    );
+                  })}
+
+                  {/* Selected BA highlighted */}
+                  {balancingAuthority && allFeatures[balancingAuthority] && (
+                    <GeoJSON
+                      key={`selected-${balancingAuthority}`}
+                      data={allFeatures[balancingAuthority] as GeoJSON.Feature}
+                      style={{ color: '#2b8bd9', weight: 2, fillColor: '#2b8bd9', fillOpacity: 0.28 }}
+                    >
+                      <Tooltip sticky direction="center" opacity={0.95}>
+                        {allFeatures[balancingAuthority].properties.NAME}
+                      </Tooltip>
+                    </GeoJSON>
+                  )}
+                </MapContainer>
+
+                {isLoading && (
+                  <div
+                    className="absolute inset-0 flex items-center justify-center text-sm"
+                    style={{ backgroundColor: 'rgba(10, 15, 26, 0.16)', color: 'var(--text-primary)' }}
+                  >
+                    Loading BA geometry...
+                  </div>
+                )}
+
+                {!isLoading && error && (
+                  <div
+                    className="absolute inset-0 flex items-center justify-center text-sm px-6 text-center"
+                    style={{ backgroundColor: 'rgba(10, 15, 26, 0.08)', color: 'var(--text-secondary)' }}
+                  >
+                    {error}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-
-        {!isLoading && error && (
-          <div
-            className="absolute inset-0 flex items-center justify-center text-sm px-6 text-center"
-            style={{
-              backgroundColor: "rgba(10, 15, 26, 0.08)",
-              color: "var(--text-secondary)",
-            }}
-          >
-            {error}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -19,7 +19,7 @@ import { getTimezoneAbbreviation } from "@/lib/timezone";
 interface CombinedChartProps {
   fuelMixData: HistoricalRecord[]; // Secondary/enhancement data (optional)
   pricingData: LMPDataPoint[]; // Primary data (required for chart display)
-  location?: string; // ISO/RTO identifier for timezone display
+  balancingAuthority?: string; // ISO/RTO identifier for timezone display
   baName?: string; // BA name for Y-axis label
   zoneName?: string; // Zone name for Y-axis label
 }
@@ -152,7 +152,7 @@ const CustomTooltip = ({
   );
 };
 
-export default function CombinedChart({ fuelMixData, pricingData, location, baName, zoneName }: CombinedChartProps) {
+export default function CombinedChart({ fuelMixData, pricingData, balancingAuthority, baName, zoneName }: CombinedChartProps) {
   // Track visibility state for each data series
   const [visibility, setVisibility] = useState<Record<DataKey, boolean>>({
     // Renewables (8)
@@ -238,7 +238,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
     const date = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
     const month = date.toLocaleDateString('en-US', { month: 'long' });
     const day = date.getDate();
-    const tz = location ? getTimezoneAbbreviation(location) : "";
+    const tz = balancingAuthority ? getTimezoneAbbreviation(balancingAuthority) : "";
     const datePart = `${month} ${day}`;
     return tz ? `Hours (${datePart}, ${tz})` : `Hours (${datePart})`;
   };
@@ -374,7 +374,6 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
               fontSize: "var(--font-sm)"
             }}
             tick={{ fill: "var(--text-primary)", fontSize: "var(--font-xs)" }}
-            tickFormatter={(value) => (value % 2 === 0 && value !== 0 && value !== 24) ? value.toString() : ''}
             height={40}
           />
           
@@ -388,9 +387,11 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
               value: "Generation in GW", 
               angle: -90, 
               position: "insideLeft",
+              offset: 8,
               fill: "var(--text-primary)", 
               fontWeight: 400,
-              fontSize: "var(--font-sm)"
+              fontSize: "var(--font-sm)",
+              style: { textAnchor: 'middle' }
             }}
           />
           
@@ -403,12 +404,13 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
             width={hasPricingData ? 40 : 0}
             hide={!hasPricingData}
             label={hasPricingData ? { 
-              value: zoneName ? `${zoneName} in $/MWh` : "Pricing in $/MWh",
+              value: "Price in $/MWh",
               angle: 90, 
               position: "insideRight",
               fill: "var(--text-primary)", 
               fontWeight: 400,
-              fontSize: "var(--font-sm)"
+              fontSize: "var(--font-sm)",
+              style: { textAnchor: 'middle' }
             } : undefined}
           />
           
@@ -693,7 +695,7 @@ export default function CombinedChart({ fuelMixData, pricingData, location, baNa
                 {itemsWithData.map((item) => {
                   const isVisible = visibility[item];
                   const color = COLOR_VARS[item];
-                  const label = item.charAt(0).toUpperCase() + item.slice(1);
+                  const label = item === 'lmp' ? 'Total (LMP)' : item.charAt(0).toUpperCase() + item.slice(1);
                   
                   return (
                     <button

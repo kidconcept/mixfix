@@ -13,7 +13,7 @@ import {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const location = searchParams.get("location");
+  const balancingAuthority = searchParams.get("location");
   const date = searchParams.get("date");
   const view = searchParams.get("view"); // Optional: 'fuel-mix' (default) or 'pricing'
   const node = searchParams.get("node"); // Required for pricing view
@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     // PRICING VIEW: Grid Status only
     // =========================================================================
     if (view === "pricing") {
-      if (!location) {
+      if (!balancingAuthority) {
         return NextResponse.json(
           { error: "Location parameter is required for pricing view" },
           { status: 400 }
@@ -55,15 +55,15 @@ export async function GET(request: Request) {
       }
 
       // Check if pricing is supported for this ISO
-      if (!isPricingSupported(location)) {
+      if (!isPricingSupported(balancingAuthority)) {
         return NextResponse.json(
-          { error: `Pricing data not available for ${location}` },
+          { error: `Pricing data not available for ${balancingAuthority}` },
           { status: 400 }
         );
       }
 
       // Fetch pricing data
-      const result = await fetchGridStatusPricing(location, node, date);
+      const result = await fetchGridStatusPricing(balancingAuthority, node, date);
 
       // Handle fetch errors
       if (!result.success) {
@@ -94,7 +94,7 @@ export async function GET(request: Request) {
         meta: {
           source: "grid-status",
           view: "pricing",
-          location,
+          location: balancingAuthority,
           node,
           date,
           summary: generateQualitySummary(quality),
@@ -106,7 +106,7 @@ export async function GET(request: Request) {
     // FUEL MIX VIEW: EIA only (Architecture V2 decision)
     // =========================================================================
     
-    if (!location) {
+    if (!balancingAuthority) {
       return NextResponse.json(
         { error: "Location parameter is required for fuel mix view" },
         { status: 400 }
@@ -116,7 +116,7 @@ export async function GET(request: Request) {
     // Fetch fuel mix data from EIA
     const apiStartTime = Date.now();
     console.log(`[API Route] Starting EIA fuel mix fetch...`);
-    const result = await fetchEIAFuelMix(location, date);
+    const result = await fetchEIAFuelMix(balancingAuthority, date);
     console.log(`[API Route] EIA fetch completed in ${Date.now() - apiStartTime}ms`);
 
     // Handle fetch errors
@@ -149,7 +149,7 @@ export async function GET(request: Request) {
         source: "eia",
         dataSource: "eia-api", // Track that data came from real EIA API
         view: "fuel-mix",
-        location,
+        location: balancingAuthority,
         date,
         summary: generateQualitySummary(quality),
         recordCount: result.data.length,

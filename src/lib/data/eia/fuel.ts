@@ -46,14 +46,14 @@ interface EIAResponse {
 }
 
 /**
- * Fetch hourly fuel mix data from EIA API for a specific location and date
+ * Fetch hourly fuel mix data from EIA API for a specific balancingAuthority and date
  * 
- * @param location - ISO/RTO code (e.g., "NYISO", "CAISO") or 2-letter state code
+ * @param balancingAuthority - ISO/RTO code (e.g., "NYISO", "CAISO") or 2-letter state code
  * @param date - Date in YYYY-MM-DD format
  * @returns Promise with request result containing hourly records or error
  */
 export async function fetchEIAFuelMix(
-  location: string,
+  balancingAuthority: string,
   date: string
 ): Promise<RequestResult<HistoricalRecord[]>> {
   const apiKey = process.env.EIA_API_KEY;
@@ -70,17 +70,17 @@ export async function fetchEIAFuelMix(
   }
 
   // Build query parameters
-  const params = buildParams(apiKey, location, date);
+  const params = buildParams(apiKey, balancingAuthority, date);
   const url = `${EIA_RTO_ENDPOINT}?${params}`;
 
   // Log BA code mapping for verification
-  const upperLoc = location.toUpperCase();
+  const upperLoc = balancingAuthority.toUpperCase();
   const eiaCode = getEIACode(upperLoc);
   const facetType = eiaCode ? 'respondent' : (upperLoc.length === 2 ? 'stateid' : 'unknown');
   const facetValue = eiaCode || (upperLoc.length === 2 ? upperLoc : 'N/A');
   
-  console.log(`[EIA] Starting fetch for ${location} on ${date}`);
-  console.log(`[EIA] BA Mapping: ${location} → ${facetType}=${facetValue}`);
+  console.log(`[EIA] Starting fetch for ${balancingAuthority} on ${date}`);
+  console.log(`[EIA] BA Mapping: ${balancingAuthority} → ${facetType}=${facetValue}`);
   console.log(`[EIA] Request URL: ${url}`);
 
   // Execute request through queue with timeout and retry
@@ -127,14 +127,14 @@ export async function fetchEIAFuelMix(
 
   // Transform EIA rows to hourly records
   const rawRowCount = result.data.length;
-  const records = transformEIAData(result.data, date, location);
+  const records = transformEIAData(result.data, date, balancingAuthority);
   
   const totalTime = Date.now() - startTime;
   console.log(`[EIA] Total request time (including queue/retry): ${totalTime}ms`);
   console.log(`[EIA] Data transformation: ${rawRowCount} raw rows → ${records.length} hourly records`);
   
   if (rawRowCount === 0) {
-    console.warn(`[EIA] WARNING: No data returned from EIA API for ${location} on ${date}`);
+    console.warn(`[EIA] WARNING: No data returned from EIA API for ${balancingAuthority} on ${date}`);
   }
 
   return {
@@ -146,7 +146,7 @@ export async function fetchEIAFuelMix(
 /**
  * Build URL parameters for EIA API request
  */
-function buildParams(apiKey: string, location: string, date: string): URLSearchParams {
+function buildParams(apiKey: string, balancingAuthority: string, date: string): URLSearchParams {
   const params = new URLSearchParams();
   
   // API key and data selection
@@ -159,7 +159,7 @@ function buildParams(apiKey: string, location: string, date: string): URLSearchP
   
   // Convert selected local day to UTC query bounds.
   // Include one extra hour after local midnight-next-day so hour 24 is captured.
-  const timezone = getBATimezone(location);
+  const timezone = getBATimezone(balancingAuthority);
   const utcWindow = getUTCWindowForLocalDate(date, timezone, {
     bufferBeforeHours: 0,
     bufferAfterHours: 1,
@@ -173,7 +173,7 @@ function buildParams(apiKey: string, location: string, date: string): URLSearchP
   params.set("sort[0][direction]", "asc");
   
   // Location facet
-  const upperLoc = location.toUpperCase();
+  const upperLoc = balancingAuthority.toUpperCase();
   const eiaCode = getEIACode(upperLoc);
   
   if (eiaCode) {
@@ -199,9 +199,9 @@ function buildParams(apiKey: string, location: string, date: string): URLSearchP
  * - Uses null for missing fuel types (not zero)
  * - Only includes hours within the requested date
  */
-function transformEIAData(rows: EIARow[], date: string, location: string): HistoricalRecord[] {
+function transformEIAData(rows: EIARow[], date: string, balancingAuthority: string): HistoricalRecord[] {
   const hourlyMap = new Map<number, Map<EnergySource, number>>();
-  const timezone = getBATimezone(location);
+  const timezone = getBATimezone(balancingAuthority);
   
   // Calculate next day for hour 24 mapping (simple string arithmetic to avoid timezone issues)
   const [year, month, day] = date.split('-').map(Number);

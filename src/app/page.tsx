@@ -7,9 +7,7 @@ import dynamic from "next/dynamic";
 import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
-import { getAllBAs, getZonesWithNames, hasPricingData, getRepresentativeZone } from "@/lib/config/balancing-authorities";
-import { fetchAllBAGeometries } from "@/lib/config/ba-geometry";
-import { BAGeometryFeature } from "@/types/energy";
+import { hasPricingData, getBAConfig, getZoneName } from "@/lib/config/balancing-authorities";
 
 const BAMap = dynamic(() => import("@/components/BAMap"), { ssr: false });
 
@@ -118,16 +116,9 @@ function getToday(): string {
 }
 
 export default function Home() {
-  // Load all available balancing authorities from config
-  const allBAs = getAllBAs();
-  
-  const [location, setLocation] = useState<string>("");
+  const [balancingAuthority, setBalancingAuthority] = useState<string>("");
   const [date, setDate] = useState(getTwoDaysAgo());
   const [zone, setZone] = useState<string>("");
-  const [showBADropdown, setShowBADropdown] = useState(false);
-  const [baSearchTerm, setBaSearchTerm] = useState("");
-  const [showZoneDropdown, setShowZoneDropdown] = useState(false);
-  const [zoneSearchTerm, setZoneSearchTerm] = useState("");
   const [address, setAddress] = useState<string>("");
   const [isLocating, setIsLocating] = useState(false);
 
@@ -135,51 +126,22 @@ export default function Home() {
   const [dateHovered, setDateHovered] = useState(false);
   const [addressFocused, setAddressFocused] = useState(false);
   const [addressHovered, setAddressHovered] = useState(false);
-  const [baFocused, setBaFocused] = useState(false);
-  const [baHovered, setBaHovered] = useState(false);
-  const [zoneFocused, setZoneFocused] = useState(false);
-  const [zoneHovered, setZoneHovered] = useState(false);
   const [fuelMixRetryCount, setFuelMixRetryCount] = useState(0);
   const [pricingRetryCount, setPricingRetryCount] = useState(0);
   const [gridStatusQuotaExceeded, setGridStatusQuotaExceeded] = useState(false);
   const [showMapPanel, setShowMapPanel] = useState(false);
-  const [cachedGeometries, setCachedGeometries] = useState<Record<string, BAGeometryFeature>>({});
   
   // Derive SWR keys reactively from state - ensures chart always syncs with BA/Zone fields
-  const fuelMixKey = location 
-    ? `/api/energy?date=${date}&location=${location}${fuelMixRetryCount > 0 ? `&retry=${fuelMixRetryCount}` : ""}`
+  const fuelMixKey = balancingAuthority 
+    ? `/api/energy?date=${date}&location=${balancingAuthority}${fuelMixRetryCount > 0 ? `&retry=${fuelMixRetryCount}` : ""}`
     : null;
 
-  const pricingKey = (location && zone && hasPricingData(location))
-    ? `/api/energy?date=${date}&location=${location}&view=pricing&node=${zone}${pricingRetryCount > 0 ? `&retry=${pricingRetryCount}` : ""}`
+  const pricingKey = (balancingAuthority && zone && hasPricingData(balancingAuthority))
+    ? `/api/energy?date=${date}&location=${balancingAuthority}&view=pricing&node=${zone}${pricingRetryCount > 0 ? `&retry=${pricingRetryCount}` : ""}`
     : null;
   
   const dateInputRef = useRef<HTMLInputElement>(null);
   const addressInputRef = useRef<HTMLInputElement>(null);
-  const baInputRef = useRef<HTMLInputElement>(null);
-  const zoneInputRef = useRef<HTMLInputElement>(null);
-  const baDropdownRef = useRef<HTMLDivElement>(null);
-  const selectedBARef = useRef<HTMLButtonElement>(null);
-  const zoneDropdownRef = useRef<HTMLDivElement>(null);
-  const selectedZoneRef = useRef<HTMLButtonElement>(null);
-
-  // Scroll selected BA into center view when dropdown opens
-  useEffect(() => {
-    if (showBADropdown && selectedBARef.current && baDropdownRef.current) {
-      setTimeout(() => {
-        selectedBARef.current?.scrollIntoView({ block: 'center', behavior: 'auto' });
-      }, 0);
-    }
-  }, [showBADropdown]);
-
-  // Scroll selected zone into center view when dropdown opens
-  useEffect(() => {
-    if (showZoneDropdown && selectedZoneRef.current && zoneDropdownRef.current) {
-      setTimeout(() => {
-        selectedZoneRef.current?.scrollIntoView({ block: 'center', behavior: 'auto' });
-      }, 0);
-    }
-  }, [showZoneDropdown]);
 
   const handleLocate = async () => {
     setIsLocating(true);
@@ -192,13 +154,13 @@ export default function Home() {
 
       if (!response.ok) {
         // Reset BA/Zone when geocoding fails (e.g., address not found).
-        setLocation("");
+        setBalancingAuthority("");
         setZone("");
         return;
       }
 
       if (data.iso) {
-        setLocation(data.iso);
+        setBalancingAuthority(data.iso);
         // Always update zone from geocode result
         if (data.suggestedNode) {
           setZone(data.suggestedNode);
@@ -209,11 +171,11 @@ export default function Home() {
       } else {
         // No BA/Zone found - reset fields and show error in Location field
         setAddress("BA/Zone not found");
-        setLocation("");
+        setBalancingAuthority("");
         setZone("");
       }
     } catch (error) {
-      setLocation("");
+      setBalancingAuthority("");
       setZone("");
       console.error("Geocode error:", error);
     } finally {
@@ -228,19 +190,6 @@ export default function Home() {
     setFuelMixRetryCount(0);
     setPricingRetryCount(0);
     setIsLocating(false);
-  };
-
-  // Handle BA selection from map click
-  const handleMapBAClick = (baCode: string) => {
-    setLocation(baCode);
-    setAddress(""); // Clear location field when BA changes
-    // Set representative zone for the new BA
-    const repZone = getRepresentativeZone(baCode);
-    if (repZone) {
-      setZone(repZone);
-    }
-    setFuelMixRetryCount(0);
-    setPricingRetryCount(0);
   };
 
   // Load data on initial mount
@@ -272,7 +221,7 @@ export default function Home() {
                 const geocodeData = await geocodeResponse.json();
                 
                 if (geocodeData.iso) {
-                  setLocation(geocodeData.iso);
+                  setBalancingAuthority(geocodeData.iso);
                   // Update zone from geocode result
                   if (geocodeData.suggestedNode) {
                     setZone(geocodeData.suggestedNode);
@@ -294,44 +243,6 @@ export default function Home() {
         }
       );
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Preload map geometries in the background for instant map loading
-  useEffect(() => {
-    let isMounted = true;
-
-    async function preloadMapGeometries() {
-      // Only load if we don't have them cached already
-      if (Object.keys(cachedGeometries).length === 0) {
-        try {
-          const geometries = await fetchAllBAGeometries();
-          if (isMounted) {
-            setCachedGeometries(geometries);
-          }
-        } catch (error) {
-          console.error("Error preloading map geometries:", error);
-          // Silently fail - geometries will load when map opens
-        }
-      }
-    }
-
-    // Start preloading after page load completes
-    const handleLoad = () => {
-      preloadMapGeometries();
-    };
-
-    if (document.readyState === 'complete') {
-      // Page already loaded
-      preloadMapGeometries();
-    } else {
-      // Wait for page to finish loading
-      window.addEventListener('load', handleLoad);
-    }
-
-    return () => {
-      isMounted = false;
-      window.removeEventListener('load', handleLoad);
-    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: fuelMixData, isLoading: fuelMixLoading, error: fuelMixError } = useSWR(fuelMixKey, fetcher, {
@@ -378,7 +289,7 @@ export default function Home() {
 
       return () => clearTimeout(retryTimer);
     }
-  }, [fuelMixError, fuelMixData, fuelMixRetryCount, date, location]);
+  }, [fuelMixError, fuelMixData, fuelMixRetryCount, date, balancingAuthority]);
 
   // Retry logic for pricing data with exponential backoff
   useEffect(() => {
@@ -404,7 +315,7 @@ export default function Home() {
 
       return () => clearTimeout(retryTimer);
     }
-  }, [pricingError, pricingData, pricingRetryCount, date, location, zone]);
+  }, [pricingError, pricingData, pricingRetryCount, date, balancingAuthority, zone]);
 
   // Reset retry counts when data successfully loads
   useEffect(() => {
@@ -422,7 +333,7 @@ export default function Home() {
   }, [pricingData, pricingRetryCount]);
 
   // Check if current BA supports pricing
-  const supportsPricing = hasPricingData(location);
+  const supportsPricing = hasPricingData(balancingAuthority);
   // Data availability - show chart if we have either pricing or fuel mix data
   const hasPricingDataLoaded = !!pricingData;
   const hasFuelMixData = !!fuelMixData;
@@ -435,12 +346,12 @@ export default function Home() {
     let hasError = false;
 
     // Non-ISO BA info
-    if (!supportsPricing && location) {
-      messages.push(`Pricing unavailable for ${location}; showing fuel mix only`);
+    if (!supportsPricing && balancingAuthority) {
+      messages.push(`Pricing unavailable for ${balancingAuthority}; showing fuel mix only`);
     }
 
     // No BA selected
-    if (!location) {
+    if (!balancingAuthority) {
       messages.push("Select a BA and zone to load data");
     }
 
@@ -495,7 +406,7 @@ export default function Home() {
     }
 
     // Non-ISO fuel mix error
-    if (!supportsPricing && location && !fuelMixData && fuelMixError) {
+    if (!supportsPricing && balancingAuthority && !fuelMixData && fuelMixError) {
       hasError = true;
       messages.push(
         fuelMixError.message?.includes("rate limit") || fuelMixError.message?.includes("Rate limit")
@@ -522,18 +433,13 @@ export default function Home() {
     <>
     <SWRConfig value={swrConfig}>
       <main className="min-h-screen w-[80%] mx-auto" style={{ padding: 'clamp(1.5rem, 2vw, 4rem) clamp(1rem, 2vw, 3rem)' }}>
-        {/* Top Row: Brand + Status Message */}
-        <div className="flex flex-wrap gap-4 items-baseline">
-          <div className="font-bold text-2xl mixfix-brand-title" style={{ color: 'var(--text-primary)' }}>mixfix</div>
-
-          <div className="flex-1 min-w-[260px]">
-            {statusMessageNode}
+        {/* Top Row: Brand + Fields + Status */}
+        <div className="flex flex-wrap gap-2 items-baseline form-fields-group">
+          <div className="flex flex-col">
+            <label className="font-semibold pr-2" style={{ color: 'transparent', fontSize: 'var(--font-form-xs)' }}>.</label>
+            <div className="font-bold text-2xl mixfix-brand-title" style={{ color: 'var(--text-primary)', marginRight: '0.5rem', height: 'var(--form-height)', display: 'flex', alignItems: 'center' }}>mixfix</div>
           </div>
-        </div>
 
-        {/* Search Fields Row */}
-        <div className="mt-2 flex flex-wrap gap-2 items-baseline form-fields-group">
-          
           {/* Date Field */}
           <div className="flex flex-col form-field-block">
             <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Date</label>
@@ -574,7 +480,7 @@ export default function Home() {
 
           {/* Address Field */}
           <div className="flex flex-col form-field-block">
-            <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Search by Location</label>
+            <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Location</label>
             <div className="relative">
             <div className="flex items-center gap-0">
               <div 
@@ -633,237 +539,13 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Grid Area Controls Group */}
-          <div className="flex flex-wrap gap-2 items-baseline p-2 rounded-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-            {/* BA Field */}
-            <div className="flex flex-col form-field-block">
-              <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Grid</label>
-            <div className="relative">
-            <div className="flex items-center gap-0">
-              <div 
-                className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
-                style={{ borderColor: (baFocused || baHovered) ? 'var(--active)' : 'var(--border-subtle)', height: 'var(--form-height)', paddingLeft: '3px' }}
-                onMouseEnter={() => setBaHovered(true)}
-                onMouseLeave={() => setBaHovered(false)}
-              >
-                {addressFocused ? (
-                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: 'var(--input-height)' }}>--</span>
-                ) : (
-                  <input
-                    ref={baInputRef}
-                    type="text"
-                    value={baSearchTerm || location}
-                    size={Math.max((baSearchTerm || location || 'Select BA').length, 1)}
-                    onChange={(e) => {
-                      setBaSearchTerm(e.target.value);
-                      setShowBADropdown(true);
-                    }}
-                    onFocus={(e) => {
-                      setBaFocused(true);
-                      setShowBADropdown(true);
-                      e.target.select();
-                    }}
-                    onBlur={() => {
-                      setBaFocused(false);
-                      setTimeout(() => setShowBADropdown(false), 200);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.currentTarget.blur();
-                        setFuelMixRetryCount(0);
-                        setPricingRetryCount(0);
-                      }
-                    }}
-                    placeholder="Select BA"
-                    className="font-medium focus:outline-none bg-transparent"
-                    style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)' }}
-                  />
-                )}
-                <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-base)' }}>▾</span>
-              </div>
-            </div>
-            {showBADropdown && (
-              <div 
-                ref={baDropdownRef}
-                className="absolute z-10 mt-1 rounded-lg shadow-lg overflow-y-auto"
-                style={{ 
-                  backgroundColor: 'var(--bg-primary)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--active)',
-                  minWidth: 'var(--dropdown-min-width)',
-                  maxHeight: '240px'
-                }}
-              >
-                {allBAs
-                  .filter(ba => 
-                    !baSearchTerm || 
-                    ba.code.toLowerCase().includes(baSearchTerm.toLowerCase()) ||
-                    ba.name.toLowerCase().includes(baSearchTerm.toLowerCase())
-                  )
-                  .map(ba => (
-                    <button
-                      key={ba.code}
-                      ref={location === ba.code ? selectedBARef : null}
-                      onClick={() => {
-                        setLocation(ba.code);
-                        setAddress(""); // Clear location field when BA changes
-                        setBaSearchTerm("");
-                        setShowBADropdown(false);
-                        // Set default zone if BA has pricing
-                        if (ba.hasPricing && ba.representativeZone) {
-                          setZone(ba.representativeZone);
-                        }
-                        setFuelMixRetryCount(0);
-                        setPricingRetryCount(0);
-                      }}
-                      onMouseEnter={(e) => {
-                        if (location !== ba.code) {
-                          e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (location !== ba.code) {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }
-                      }}
-                      className="w-full text-left px-4 py-1.5 transition-colors"
-                      style={{ 
-                        backgroundColor: location === ba.code ? 'var(--active)' : 'transparent',
-                        color: 'var(--text-primary)'
-                      }}
-                    >
-                      <div className="text-base">{ba.name}</div>
-                      <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        {ba.code} {ba.hasPricing && '• Pricing Available'}
-                      </div>
-                    </button>
-                  ))}
-              </div>
-            )}
-            </div>
-          </div>
-
-          {/* Zone Field */}
-          <div className="flex flex-col form-field-block">
-            <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)', opacity: supportsPricing ? 1 : 0.5 }}>Zone</label>
-            <div className="relative">
-            <div className="flex items-center gap-0">
-              <div 
-                className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
-                style={{ 
-                  borderColor: (zoneFocused || zoneHovered) && supportsPricing ? 'var(--active)' : 'var(--border-subtle)', 
-                  height: 'var(--form-height)',
-                  paddingLeft: '3px',
-                  opacity: supportsPricing ? 1 : 0.5
-                }}
-                onMouseEnter={() => setZoneHovered(true)}
-                onMouseLeave={() => setZoneHovered(false)}
-              >
-                {addressFocused ? (
-                  <span className="pulse-dash font-medium select-none" style={{ color: 'var(--text-secondary)', height: 'var(--input-height)' }}>--</span>
-                ) : (
-                  <input
-                    ref={zoneInputRef}
-                    type="text"
-                    value={zoneSearchTerm || zone}
-                    size={Math.max((zoneSearchTerm || zone || (supportsPricing ? 'Select Zone' : 'N/A')).length, 1)}
-                    onChange={(e) => {
-                      setZoneSearchTerm(e.target.value);
-                      setShowZoneDropdown(true);
-                    }}
-                    onFocus={(e) => {
-                      setZoneFocused(true);
-                      if (supportsPricing) {
-                        setShowZoneDropdown(true);
-                      }
-                      e.target.select();
-                    }}
-                    onBlur={() => {
-                      setZoneFocused(false);
-                      setTimeout(() => setShowZoneDropdown(false), 200);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.currentTarget.blur();
-                        setFuelMixRetryCount(0);
-                        setPricingRetryCount(0);
-                      }
-                    }}
-                    placeholder={supportsPricing ? "Select Zone" : "N/A"}
-                    disabled={!supportsPricing}
-                    className="font-medium focus:outline-none bg-transparent disabled:cursor-not-allowed"
-                    style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)' }}
-                  />
-                )}
-                <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-base)' }}>▾</span>
-              </div>
-            </div>
-            {showZoneDropdown && supportsPricing && (
-              <div 
-                ref={zoneDropdownRef}
-                className="absolute z-10 mt-1 rounded-lg shadow-lg overflow-y-auto"
-                style={{ 
-                  backgroundColor: 'var(--bg-primary)',
-                  borderWidth: '1px',
-                  borderStyle: 'solid',
-                  borderColor: 'var(--active)',
-                  minWidth: 'var(--dropdown-min-width)',
-                  maxHeight: '240px'
-                }}
-              >
-                {getZonesWithNames(location)
-                  .filter(z => 
-                    !zoneSearchTerm || 
-                    z.code.toLowerCase().includes(zoneSearchTerm.toLowerCase()) ||
-                    z.name.toLowerCase().includes(zoneSearchTerm.toLowerCase())
-                  )
-                  .map(z => (
-                    <button
-                      key={z.code}
-                      ref={zone === z.code ? selectedZoneRef : null}
-                      onClick={() => {
-                        setZone(z.code);
-                        setZoneSearchTerm("");
-                        setShowZoneDropdown(false);
-                        setFuelMixRetryCount(0);
-                        setPricingRetryCount(0);
-                      }}
-                      onMouseEnter={(e) => {
-                        if (zone !== z.code) {
-                          e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (zone !== z.code) {
-                          e.currentTarget.style.backgroundColor = 'transparent';
-                        }
-                      }}
-                      className="w-full text-left px-4 py-1.5 transition-colors"
-                      style={{ 
-                        backgroundColor: zone === z.code ? 'var(--active)' : 'transparent',
-                        color: 'var(--text-primary)'
-                      }}
-                    >
-                      <div className="text-base">{z.name}</div>
-                      <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                        {z.code}
-                      </div>
-                    </button>
-                  ))}
-              </div>
-            )}
-            </div>
-          </div>
-
-          {/* Map Toggle Button */}
+          {/* Grid Info Button */}
           <div className="flex flex-col form-field-block">
             <label className="font-semibold pr-2" style={{ color: 'transparent', fontSize: 'var(--font-form-xs)' }}>.</label>
             <button
               type="button"
-              disabled={!location}
               onClick={() => setShowMapPanel((prev) => !prev)}
-              className="px-3 py-1.5 font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1.5 font-medium rounded-lg transition-colors"
               style={{
                 backgroundColor: showMapPanel ? "var(--active)" : "var(--bg-primary)",
                 color: "var(--text-primary)",
@@ -872,15 +554,40 @@ export default function Home() {
                 fontSize: 'var(--font-form-base)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center'
+                gap: '6px'
               }}
             >
-              {showMapPanel ? "Hide Area Map" : "Area Map"}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polygon points="3,6 9,3 15,6 21,3 21,18 15,21 9,18 3,21"/>
+                <line x1="9" y1="3" x2="9" y2="18"/>
+                <line x1="15" y1="6" x2="15" y2="21"/>
+              </svg>
+              Grid Info
             </button>
           </div>
-          </div>{/* End Grid Area Controls Group */}
-          
-        </div>{/* End Form Fields Group */}
+
+          {/* Status message */}
+          <div className="flex-1 min-w-[260px] self-end" style={{ paddingBottom: '2px' }}>
+            {statusMessageNode}
+          </div>
+
+        </div>{/* End Top Row */}
+
+        {/* Grid / Zone summary line */}
+        {balancingAuthority && (
+          <div className="mt-1 text-sm">
+            Fuel mix in the{' '}
+            <span>{getBAConfig(balancingAuthority)?.name || balancingAuthority}</span>
+            {' '}BA
+            {supportsPricing && zone && (
+              <>, Pricing in{' '}
+                <span>{getZoneName(balancingAuthority, zone) || zone}</span>
+                {' '}Zone
+              </>
+            )}
+            .
+          </div>
+        )}
 
         {/* Data Display */}
         <div className="mt-4 data-display-container">
@@ -903,8 +610,8 @@ export default function Home() {
               <CombinedChart 
                 fuelMixData={fuelMixData?.hourly || []} 
                 pricingData={displayPricingData || []}
-                location={location}
-                baName={location}
+                balancingAuthority={balancingAuthority}
+                baName={balancingAuthority}
                 zoneName={zone}
               />
               {(fuelMixData?.meta || pricingData?.meta) && (
@@ -969,55 +676,23 @@ export default function Home() {
         <div className="font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>mixfix</div>
       </div>
 
-      {/* Map Modal */}
-      {showMapPanel && location && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
-          onClick={() => setShowMapPanel(false)}
-        >
-          <div 
-            className="relative rounded-lg shadow-2xl overflow-hidden"
-            style={{ 
-              backgroundColor: 'var(--bg-primary)',
-              width: '80vw',
-              maxHeight: '90vh'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div 
-              className="flex items-center justify-between px-4 py-3 border-b"
-              style={{ 
-                backgroundColor: 'var(--bg-secondary)',
-                borderColor: 'var(--border-subtle)'
-              }}
-            >
-              <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-                Area Map: {location}
-              </h2>
-              <button
-                onClick={() => setShowMapPanel(false)}
-                className="text-2xl leading-none hover:opacity-70 transition-opacity"
-                style={{ color: 'var(--text-primary)' }}
-                aria-label="Close modal"
-              >
-                ×
-              </button>
-            </div>
-            
-            {/* Modal Content */}
-            <div className="p-4" style={{ height: 'calc(90vh - 60px)' }}>
-              <BAMap 
-                baCode={location} 
-                onBAClick={handleMapBAClick}
-                cachedGeometries={cachedGeometries}
-                onGeometriesLoaded={setCachedGeometries}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <BAMap
+        isOpen={showMapPanel}
+        onClose={() => setShowMapPanel(false)}
+        balancingAuthority={balancingAuthority}
+        zone={zone}
+        onBalancingAuthorityChange={(code) => {
+          setBalancingAuthority(code);
+          setAddress('');
+          setFuelMixRetryCount(0);
+          setPricingRetryCount(0);
+        }}
+        onZoneChange={(code) => {
+          setZone(code);
+          setFuelMixRetryCount(0);
+          setPricingRetryCount(0);
+        }}
+      />
     </SWRConfig>
     </>
   );

@@ -272,6 +272,8 @@ input[type="date"] {
     margin-left: 0;
     margin-right: 0;
     flex: none; /* Override flex-1 on mobile to prevent sizing issues */
+    width: 100%; /* Explicit width so Firefox resolves size before ResponsiveContainer measures */
+    min-width: 0; /* Prevent flex min-width:auto from interfering */
   }
 
   .chart-legend-area {

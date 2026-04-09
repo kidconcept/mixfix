@@ -187,21 +187,21 @@ async function gridStatusFetch(
 function aggregateToHourly(
   dataPoints: GridStatusDataPoint[],
   date: string,
-  location: string,
+  balancingAuthority: string,
   isHourlyData: boolean
 ): HistoricalRecord[] {
   const hourlyData: { [hour: number]: GridStatusDataPoint } = {};
 
   for (const point of dataPoints) {
     const utcTimestamp = point.interval_start_utc;
-    const localDate = convertUTCToLocalDate(utcTimestamp, location);
+    const localDate = convertUTCToLocalDate(utcTimestamp, balancingAuthority);
     
     // Only process points that match the requested local date
     if (localDate !== date) {
       continue;
     }
     
-    const localHour = convertUTCToLocalHour(utcTimestamp, location);
+    const localHour = convertUTCToLocalHour(utcTimestamp, balancingAuthority);
 
     if (isHourlyData) {
       // For hourly data, directly map each point (no minute check needed)
@@ -257,7 +257,7 @@ function aggregateToHourly(
 // ---------------------------------------------------------------------------
 
 export async function fetchGridStatusHourly(
-  location: string | null,
+  balancingAuthority: string | null,
   date: string // YYYY-MM-DD in local time
 ): Promise<HistoricalRecord[]> {
   const apiKey = process.env.GRID_API_KEY;
@@ -265,15 +265,15 @@ export async function fetchGridStatusHourly(
     throw new Error("GRID_API_KEY not configured");
   }
 
-  if (!location) {
+  if (!balancingAuthority) {
     throw new Error("Location is required for Grid Status API");
   }
 
-  const upperLoc = location.toUpperCase();
+  const upperLoc = balancingAuthority.toUpperCase();
   const dataset = ISO_DATASET_MAP[upperLoc];
 
   if (!dataset) {
-    throw new Error(`No Grid Status dataset available for ${location}`);
+    throw new Error(`No Grid Status dataset available for ${balancingAuthority}`);
   }
 
   // Query an efficient time range to capture the full local day
@@ -286,28 +286,28 @@ export async function fetchGridStatusHourly(
   const isHourlyData = HOURLY_DATASETS.has(dataset);
   
   if (isHourlyData) {
-    console.log(`Using hourly dataset for ${location} - expecting ~24 data points`);
+    console.log(`Using hourly dataset for ${balancingAuthority} - expecting ~24 data points`);
   } else {
-    console.log(`Using sub-hourly dataset for ${location} - will aggregate ~288 data points`);
+    console.log(`Using sub-hourly dataset for ${balancingAuthority} - will aggregate ~288 data points`);
   }
 
   const response = await gridStatusFetch(dataset, startTime, endTime, apiKey);
 
   if (!response.data || response.data.length === 0) {
-    throw new Error(`No data returned from Grid Status for ${location} on ${date}`);
+    throw new Error(`No data returned from Grid Status for ${balancingAuthority} on ${date}`);
   }
 
   console.log(`Received ${response.data.length} data points from Grid Status (hourly: ${isHourlyData})`);
 
-  return aggregateToHourly(response.data, date, location, isHourlyData);
+  return aggregateToHourly(response.data, date, balancingAuthority, isHourlyData);
 }
 
 /**
- * Check if Grid Status has data for a given location
+ * Check if Grid Status has data for a given balancingAuthority
  */
-export function isGridStatusSupported(location: string | null): boolean {
-  if (!location) return false;
-  return location.toUpperCase() in ISO_DATASET_MAP;
+export function isGridStatusSupported(balancingAuthority: string | null): boolean {
+  if (!balancingAuthority) return false;
+  return balancingAuthority.toUpperCase() in ISO_DATASET_MAP;
 }
 
 export { ISO_DATASET_MAP };
