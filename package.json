@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@turf/area": "^7.3.4",
+    "@upstash/redis": "^1.37.0",
     "leaflet": "^1.9.4",
     "next": "^16.1.6",
     "react": "^19.0.0",

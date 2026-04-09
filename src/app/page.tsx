@@ -636,6 +636,16 @@ export default function Home() {
                       </span>
                       <span>→</span>
                       <span>Hourly fuel mix generation data</span>
+                      <span style={{ color: 'var(--text-tertiary)' }}>
+                        {fuelMixData.meta.cached
+                          ? fuelMixData.meta.cacheComplete
+                            ? '(cached)'
+                            : `(cached, ${fuelMixData.meta.hours} of 25 hours)`
+                          : fuelMixData.meta.cacheComplete
+                            ? '(live)'
+                            : `(live, ${fuelMixData.meta.hours} of 25 hours)`
+                        }
+                      </span>
                     </div>
                   )}
                   
@@ -658,6 +668,16 @@ export default function Home() {
                       </span>
                       <span>→</span>
                       <span>Locational Marginal Price (LMP = Energy + Congestion + Loss)</span>
+                      <span style={{ color: 'var(--text-tertiary)' }}>
+                        {pricingData.meta.cached
+                          ? pricingData.meta.cacheComplete
+                            ? '(cached)'
+                            : `(cached, ${pricingData.meta.hours} of 25 hours)`
+                          : pricingData.meta.cacheComplete
+                            ? '(live)'
+                            : `(live, ${pricingData.meta.hours} of 25 hours)`
+                        }
+                      </span>
                     </div>
                   )}
                   
