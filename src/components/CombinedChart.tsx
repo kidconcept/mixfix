@@ -294,7 +294,7 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
         const month = d.toLocaleDateString('en-US', { month: 'long' });
         const day = d.getDate();
         const tz = balancingAuthority ? getTimezoneAbbreviation(balancingAuthority) : "";
-        xAxisLabel = tz ? `Hours (${month} ${day}, ${tz})` : `Hours (${month} ${day})`;
+        xAxisLabel = tz ? `${month} ${day}, ${tz} Hours` : `${month} ${day} Hours`;
       }
     }
   } else if (granularity === 'monthly') {
@@ -305,7 +305,7 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
       if (match) {
         const d = new Date(parseInt(match[1]), parseInt(match[2]) - 1, 1);
         const month = d.toLocaleDateString('en-US', { month: 'long' });
-        xAxisLabel = `Days (${month} ${match[1]})`;
+        xAxisLabel = `${month} ${match[1]} Days`;
       }
     }
   } else {
@@ -313,7 +313,7 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
     const dateStr = fuelMixData?.[0]?.date;
     if (dateStr) {
       const match = dateStr.match(/^(\d{4})/);
-      if (match) xAxisLabel = `Months (${match[1]})`;
+      if (match) xAxisLabel = `${match[1]} Months`;
     }
   }
 
@@ -347,6 +347,19 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
 
   } else if (granularity === 'monthly') {
     // Day-keyed: period = day number (1–31)
+    // Derive month boundaries for full x-axis range
+    let lastDay = 31;
+    const fuelByDay: Record<number, HistoricalRecord> = {};
+    if (fuelMixData && fuelMixData.length > 0) {
+      const match = fuelMixData[0].date.match(/^(\d{4})-(\d{2})/);
+      if (match) {
+        lastDay = new Date(parseInt(match[1]), parseInt(match[2]), 0).getDate();
+      }
+      fuelMixData.forEach(item => {
+        const day = parseInt(item.date.split('-')[2], 10);
+        if (day >= 1 && day <= 31) fuelByDay[day] = item;
+      });
+    }
     const pricingByDay: Record<number, LMPDataPoint> = {};
     if (pricingData && pricingData.length > 0) {
       pricingData.forEach(point => {
@@ -354,17 +367,24 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
         if (day >= 1 && day <= 31) pricingByDay[day] = point;
       });
     }
-    combinedData = fuelMixData.map(item => {
-      const day = parseInt(item.date.split('-')[2], 10);
+    combinedData = Array.from({ length: lastDay }, (_, i) => {
+      const day = i + 1;
       return {
         period: day,
-        ...extractFuels(item, false),
+        ...extractFuels(fuelByDay[day], false),
         ...extractPricing(pricingByDay[day]),
       };
     });
 
   } else {
     // Yearly: period = month number (1–12)
+    const fuelByMonth: Record<number, HistoricalRecord> = {};
+    if (fuelMixData && fuelMixData.length > 0) {
+      fuelMixData.forEach(item => {
+        const month = parseInt(item.date.split('-')[1], 10);
+        if (month >= 1 && month <= 12) fuelByMonth[month] = item;
+      });
+    }
     const pricingByMonth: Record<number, LMPDataPoint> = {};
     if (pricingData && pricingData.length > 0) {
       pricingData.forEach(point => {
@@ -372,11 +392,11 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
         if (month >= 1 && month <= 12) pricingByMonth[month] = point;
       });
     }
-    combinedData = fuelMixData.map(item => {
-      const month = parseInt(item.date.split('-')[1], 10);
+    combinedData = Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
       return {
         period: month,
-        ...extractFuels(item, false),
+        ...extractFuels(fuelByMonth[month], false),
         ...extractPricing(pricingByMonth[month]),
       };
     });
