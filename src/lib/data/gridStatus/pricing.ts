@@ -368,3 +368,153 @@ function transformSubHourlyData(
 
   return records;
 }
+
+// ---------------------------------------------------------------------------
+// Resampled pricing (daily / monthly aggregation via Grid Status API)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch resampled LMP data for monthly or yearly views.
+ *
+ * Uses Grid Status `resample_frequency` parameter (confirmed working
+ * with `1 day` and `1 month` as of April 2026).
+ *
+ * @param iso - ISO/RTO code (e.g., "NYISO")
+ * @param node - Pricing node (e.g., "CAPITL")
+ * @param startDate - Start date in YYYY-MM-DD format
+ * @param endDate - End date in YYYY-MM-DD format
+ * @param resampleFreq - "1 day" for monthly view, "1 month" for yearly view
+ */
+export async function fetchGridStatusPricingResampled(
+  iso: string,
+  node: string,
+  startDate: string,
+  endDate: string,
+  resampleFreq: '1 day' | '1 month'
+): Promise<RequestResult<LMPDataPoint[]>> {
+  const apiKey = process.env.GRID_API_KEY;
+
+  if (!apiKey) {
+    return {
+      success: false,
+      error: { type: 'validation', message: 'GRID_API_KEY not configured', retryable: false },
+    };
+  }
+
+  const isoUpper = iso.toUpperCase();
+  const dataset = getGridStatusDataset(isoUpper);
+
+  if (!dataset) {
+    return {
+      success: false,
+      error: { type: 'validation', message: `LMP data not supported for ISO: ${iso}`, retryable: false },
+    };
+  }
+
+  const limit = resampleFreq === '1 day' ? 400 : 50;
+  const result = await fetchResampledDataset(apiKey, dataset, node, startDate, endDate, resampleFreq, limit);
+  if (!result.success) return result;
+
+  const records = transformResampledData(result.data, resampleFreq);
+
+  // Merge SPP data if available (ERCOT)
+  const sppDataset = getGridStatusSPPDataset(isoUpper);
+  if (sppDataset) {
+    const sppResult = await fetchResampledDataset(apiKey, sppDataset, node, startDate, endDate, resampleFreq, limit);
+    if (sppResult.success) {
+      const sppRecords = transformResampledData(sppResult.data, resampleFreq);
+      const sppByTime = new Map(sppRecords.map(r => [r.time, r.lmp]));
+      for (const record of records) {
+        const sppValue = sppByTime.get(record.time);
+        if (sppValue != null) record.spp = sppValue;
+      }
+    }
+  }
+
+  return { success: true, data: records };
+}
+
+async function fetchResampledDataset(
+  apiKey: string,
+  dataset: string,
+  node: string,
+  startDate: string,
+  endDate: string,
+  resampleFreq: string,
+  limit: number
+): Promise<RequestResult<GridStatusLMPRow[]>> {
+  const startISO = `${startDate}T00:00:00Z`;
+  const endISO = `${endDate}T23:59:59Z`;
+
+  const params = new URLSearchParams({
+    start_time: startISO,
+    end_time: endISO,
+    filter_column: 'location',
+    filter_value: node,
+    limit: String(limit),
+    resample_frequency: resampleFreq,
+    resample_by: 'location',
+    resample_function: 'mean',
+  });
+
+  const url = `${GRID_STATUS_BASE}/datasets/${dataset}/query?${params}`;
+
+  return gridStatusQueue.request(
+    async () => {
+      const response = await fetch(url, { headers: { "x-api-key": apiKey } });
+      const json: any = await response.json();
+
+      if (json.detail) {
+        const detail = json.detail.toLowerCase();
+        if (detail.includes('limit reached') || detail.includes('quota') || detail.includes('usage')) {
+          const error: any = new Error(`Grid Status API quota exceeded: ${json.detail}`);
+          error.statusCode = 429;
+          error.quotaExceeded = true;
+          throw error;
+        }
+        if (!response.ok) {
+          const error: any = new Error(`Grid Status API error: ${json.detail}`);
+          error.statusCode = response.status;
+          throw error;
+        }
+      }
+
+      if (!response.ok) {
+        const error: any = new Error(`Grid Status API error: ${response.status} ${response.statusText}`);
+        error.statusCode = response.status;
+        throw error;
+      }
+
+      const typedJson = json as GridStatusLMPResponse;
+      if (!typedJson.data || !Array.isArray(typedJson.data)) {
+        const error: any = new Error('Grid Status API returned no data');
+        error.statusCode = 500;
+        throw error;
+      }
+
+      return typedJson.data.map(r => normalizeRow(r as unknown as Record<string, unknown>));
+    },
+    { timeout: 45000, maxRetries: 3, retryDelay: 1000 }
+  );
+}
+
+function transformResampledData(
+  rows: GridStatusLMPRow[],
+  resampleFreq: string
+): LMPDataPoint[] {
+  return rows.map(row => {
+    // Extract date or month from interval_start_utc
+    const isoStr = row.interval_start_utc;
+    const time = resampleFreq === '1 day'
+      ? isoStr.slice(0, 10)      // YYYY-MM-DD
+      : isoStr.slice(0, 7);      // YYYY-MM
+
+    return {
+      time,
+      lmp: Number(row.lmp.toFixed(2)),
+      energy: Number((row.energy ?? 0).toFixed(2)),
+      congestion: Number((row.congestion ?? 0).toFixed(2)),
+      loss: Number((row.loss ?? 0).toFixed(2)),
+    };
+  });
+}

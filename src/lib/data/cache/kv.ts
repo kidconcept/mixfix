@@ -16,8 +16,8 @@ import { Redis } from "@upstash/redis";
 
 export interface CacheEntry<T> {
   data: T;
-  hours: number;      // count of hours present (target: 25)
-  complete: boolean;   // true when hours === 25
+  records: number;     // count of records present (hours for daily, days for monthly, months for yearly)
+  complete: boolean;   // true when all expected records present
   fetchedAt: string;   // ISO-8601 timestamp
 }
 
@@ -57,6 +57,14 @@ export function pricingCacheKey(iso: string, node: string, date: string): string
 
 export function fuelMixCacheKey(ba: string, date: string): string {
   return `eia:fuel:${ba.toUpperCase()}:${date}`;
+}
+
+export function dailyFuelCacheKey(ba: string, scope: string): string {
+  return `eia:fuel-daily:${ba.toUpperCase()}:${scope}`;
+}
+
+export function resampledPricingCacheKey(iso: string, node: string, scope: string): string {
+  return `gs:lmp-resampled:${iso.toUpperCase()}:${node}:${scope}`;
 }
 
 // ---------------------------------------------------------------------------

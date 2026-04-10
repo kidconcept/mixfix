@@ -1,5 +1,7 @@
 // Types for energy generation data
 
+export type Granularity = 'daily' | 'monthly' | 'yearly';
+
 export type EnergySource =
   // Renewables (8)
   | "solar"

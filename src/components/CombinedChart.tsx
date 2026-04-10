@@ -13,7 +13,7 @@ import {
   ReferenceLine,
   TooltipProps,
 } from "recharts";
-import { HistoricalRecord, LMPDataPoint } from "@/types/energy";
+import { HistoricalRecord, LMPDataPoint, Granularity } from "@/types/energy";
 import { getTimezoneAbbreviation } from "@/lib/timezone";
 
 interface CombinedChartProps {
@@ -22,6 +22,7 @@ interface CombinedChartProps {
   balancingAuthority?: string; // ISO/RTO identifier for timezone display
   baName?: string; // BA name for Y-axis label
   zoneName?: string; // Zone name for Y-axis label
+  granularity?: Granularity; // daily (default), monthly, or yearly
 }
 
 type DataKey = 'solar' | 'wind' | 'hydro' | 'geothermal' | 'biomass' | 'batteries' | 'imports' | 'other' | 'coal' | 'gas' | 'oil' | 'nuclear' | 'charging' | 'lmp' | 'spp' | 'energy' | 'congestion' | 'loss';
@@ -74,13 +75,16 @@ const LEGEND_GROUPS: LegendGroup[] = [
   }
 ];
 
+const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 // Custom Tooltip Component
 const CustomTooltip = ({ 
   active, 
   payload, 
   label,
-  keysWithData 
-}: TooltipProps<any, any> & { keysWithData: Set<DataKey> }) => {
+  keysWithData,
+  granularity,
+}: TooltipProps<any, any> & { keysWithData: Set<DataKey>; granularity: Granularity }) => {
   if (!active || !payload || !payload.length) return null;
 
   // Filter payload to only show items with data across the time range
@@ -116,7 +120,11 @@ const CustomTooltip = ({
       }}
     >
       <div style={{ color: "var(--text-primary)", fontWeight: 600, marginBottom: "4px" }}>
-        {label === 24 ? 'Hour 0:00 (next day)' : `Hour ${label}:00`}
+        {granularity === 'yearly'
+          ? MONTH_NAMES[label as number] || `Month ${label}`
+          : granularity === 'monthly'
+            ? `Day ${label}`
+            : label === 24 ? 'Hour 0:00 (next day)' : `Hour ${label}:00`}
       </div>
       {sortedPayload.map((item, index) => {
         const dataKey = String(item.dataKey || '');
@@ -153,7 +161,7 @@ const CustomTooltip = ({
   );
 };
 
-export default function CombinedChart({ fuelMixData, pricingData, balancingAuthority, baName, zoneName }: CombinedChartProps) {
+export default function CombinedChart({ fuelMixData, pricingData, balancingAuthority, baName, zoneName, granularity = 'daily' }: CombinedChartProps) {
   // Track visibility state for each data series
   const [visibility, setVisibility] = useState<Record<DataKey, boolean>>({
     // Renewables (8)
@@ -221,117 +229,158 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
   if ((!fuelMixData || fuelMixData.length === 0) && (!pricingData || pricingData.length === 0)) {
     return (
       <div className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
-        No data available for the selected day.
+        No data available for the selected period.
       </div>
     );
   }
 
   const hasPricingData = pricingData && pricingData.length > 0;
 
-  // Extract and format the date from the data
-  const getFormattedDate = (): string => {
-    const dateStr = pricingData?.[0]?.time || fuelMixData?.[0]?.date;
-    if (!dateStr) return "";
-    
-    // Extract date components (YYYY-MM-DD) and create a local date
-    // This avoids timezone issues and handles hour 24 timestamps
-    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (!match) return "";
-    
-    const date = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
-    const month = date.toLocaleDateString('en-US', { month: 'long' });
-    const day = date.getDate();
-    const tz = balancingAuthority ? getTimezoneAbbreviation(balancingAuthority) : "";
-    const datePart = `${month} ${day}`;
-    return tz ? `Hours (${datePart}, ${tz})` : `Hours (${datePart})`;
+  // Helper to safely get numeric value (data is already in GW from API)
+  const toNumber = (val: number | string | undefined): number => {
+    if (val === undefined) return 0;
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    return isNaN(num) ? 0 : num;
   };
 
-  // Process fuel mix data by hour (already normalized to local hour buckets)
-  const fuelByHour: Record<number, HistoricalRecord> = {};
-  if (fuelMixData && fuelMixData.length > 0) {
-    fuelMixData.forEach(item => {
-      const dateStr = typeof item.date === 'string' ? item.date : '';
-      const hourMatch = dateStr.match(/T(\d{2})/);
-      const hour = hourMatch ? parseInt(hourMatch[1], 10) : 0;
-      if (hour >= 0 && hour <= 24) {
-        fuelByHour[hour] = item;
-      }
-    });
-  }
-
-  // Process pricing data by hour (already normalized to local hour buckets)
-  const pricingByHour: Record<number, LMPDataPoint> = {};
-  if (pricingData && pricingData.length > 0) {
-    pricingData.forEach(point => {
-      const hourMatch = point.time.match(/T(\d{2})/);
-      const hour = hourMatch ? parseInt(hourMatch[1], 10) : 0;
-      if (hour >= 0 && hour <= 24) {
-        pricingByHour[hour] = point;
-      }
-    });
-  }
-
-  // Combine both datasets for 25 hours (0-24, where 24 = next day's hour 0)
-  const combinedData = Array.from({ length: 25 }, (_, hour) => {
-    const fuelData = fuelByHour[hour];
-    const priceData = pricingByHour[hour];
-
-    // Helper to safely get numeric value (data is already in GW from API)
-    const toNumber = (val: number | string | undefined): number => {
-      if (val === undefined) return 0;
-      const num = typeof val === 'string' ? parseFloat(val) : val;
-      return isNaN(num) ? 0 : num;
+  // Extract fuel values from a record, with optional charging split (daily only)
+  const extractFuels = (fuelData: HistoricalRecord | undefined, splitCharging: boolean) => {
+    if (!fuelData) {
+      return {
+        solar: 0, wind: 0, hydro: 0, geothermal: 0, biomass: 0, batteries: 0,
+        imports: 0, other: 0, nuclear: 0, gas: 0, coal: 0, oil: 0, charging: 0,
+      };
+    }
+    const raw = {
+      solar: toNumber(fuelData.solar), wind: toNumber(fuelData.wind),
+      hydro: toNumber(fuelData.hydro), geothermal: toNumber(fuelData.geothermal),
+      biomass: toNumber(fuelData.biomass), batteries: toNumber(fuelData.batteries),
+      imports: toNumber(fuelData.imports), other: toNumber(fuelData.other),
+      nuclear: toNumber(fuelData.nuclear), gas: toNumber(fuelData.gas),
+      coal: toNumber(fuelData.coal), oil: toNumber(fuelData.oil),
     };
-
-    // Extract raw values
-    const rawSolar = fuelData ? toNumber(fuelData.solar) : 0;
-    const rawWind = fuelData ? toNumber(fuelData.wind) : 0;
-    const rawHydro = fuelData ? toNumber(fuelData.hydro) : 0;
-    const rawGeothermal = fuelData ? toNumber(fuelData.geothermal) : 0;
-    const rawBiomass = fuelData ? toNumber(fuelData.biomass) : 0;
-    const rawBatteries = fuelData ? toNumber(fuelData.batteries) : 0;
-    const rawImports = fuelData ? toNumber(fuelData.imports) : 0;
-    const rawOther = fuelData ? toNumber(fuelData.other) : 0;
-    const rawNuclear = fuelData ? toNumber(fuelData.nuclear) : 0;
-    const rawGas = fuelData ? toNumber(fuelData.gas) : 0;
-    const rawCoal = fuelData ? toNumber(fuelData.coal) : 0;
-    const rawOil = fuelData ? toNumber(fuelData.oil) : 0;
-
-    // Split negatives: positive part stays, negative part accumulates to charging
+    if (!splitCharging) return { ...raw, charging: 0 };
     let chargingTotal = 0;
-    const split = (val: number) => {
-      if (val < 0) {
-        chargingTotal += Math.abs(val);
-        return 0;
-      }
-      return val;
-    };
+    const result: Record<string, number> = { charging: 0 };
+    for (const [k, v] of Object.entries(raw)) {
+      if (v < 0) { chargingTotal += Math.abs(v); result[k] = 0; }
+      else { result[k] = v; }
+    }
+    result.charging = chargingTotal;
+    return result;
+  };
 
-    return {
-      hour,
-      // Fuel mix data - positive parts only
-      solar: split(rawSolar),
-      wind: split(rawWind),
-      hydro: split(rawHydro),
-      geothermal: split(rawGeothermal),
-      biomass: split(rawBiomass),
-      batteries: split(rawBatteries),
-      imports: split(rawImports),
-      other: split(rawOther),
-      nuclear: split(rawNuclear),
-      gas: split(rawGas),
-      coal: split(rawCoal),
-      oil: split(rawOil),
-      // Charging (accumulated negatives)
-      charging: chargingTotal,
-      // Pricing data - all components
-      lmp: priceData?.lmp != null ? Number(priceData.lmp.toFixed(2)) : null,
-      spp: priceData?.spp != null ? Number(priceData.spp.toFixed(2)) : null,
-      energy: priceData?.energy != null ? Number(priceData.energy.toFixed(2)) : null,
-      congestion: priceData?.congestion != null ? Number(priceData.congestion.toFixed(2)) : null,
-      loss: priceData?.loss != null ? Number(priceData.loss.toFixed(2)) : null,
-    };
+  // Build pricing fields from an LMPDataPoint
+  const extractPricing = (priceData: LMPDataPoint | undefined) => ({
+    lmp: priceData?.lmp != null ? Number(priceData.lmp.toFixed(2)) : null,
+    spp: priceData?.spp != null ? Number(priceData.spp.toFixed(2)) : null,
+    energy: priceData?.energy != null ? Number(priceData.energy.toFixed(2)) : null,
+    congestion: priceData?.congestion != null ? Number(priceData.congestion.toFixed(2)) : null,
+    loss: priceData?.loss != null ? Number(priceData.loss.toFixed(2)) : null,
   });
+
+  // ---- X-axis label ----
+  let xAxisLabel = '';
+  let xAxisDataKey: string;
+
+  if (granularity === 'daily') {
+    xAxisDataKey = 'hour';
+    // Extract and format the date from the data
+    const dateStr = pricingData?.[0]?.time || fuelMixData?.[0]?.date;
+    if (dateStr) {
+      const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) {
+        const d = new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
+        const month = d.toLocaleDateString('en-US', { month: 'long' });
+        const day = d.getDate();
+        const tz = balancingAuthority ? getTimezoneAbbreviation(balancingAuthority) : "";
+        xAxisLabel = tz ? `Hours (${month} ${day}, ${tz})` : `Hours (${month} ${day})`;
+      }
+    }
+  } else if (granularity === 'monthly') {
+    xAxisDataKey = 'period';
+    const dateStr = fuelMixData?.[0]?.date;
+    if (dateStr) {
+      const match = dateStr.match(/^(\d{4})-(\d{2})/);
+      if (match) {
+        const d = new Date(parseInt(match[1]), parseInt(match[2]) - 1, 1);
+        const month = d.toLocaleDateString('en-US', { month: 'long' });
+        xAxisLabel = `Days (${month} ${match[1]})`;
+      }
+    }
+  } else {
+    xAxisDataKey = 'period';
+    const dateStr = fuelMixData?.[0]?.date;
+    if (dateStr) {
+      const match = dateStr.match(/^(\d{4})/);
+      if (match) xAxisLabel = `Months (${match[1]})`;
+    }
+  }
+
+  // ---- Build combined data ----
+  let combinedData: Record<string, any>[];
+
+  if (granularity === 'daily') {
+    // Existing hour-keyed logic (0–24 array)
+    const fuelByHour: Record<number, HistoricalRecord> = {};
+    if (fuelMixData && fuelMixData.length > 0) {
+      fuelMixData.forEach(item => {
+        const dateStr = typeof item.date === 'string' ? item.date : '';
+        const hourMatch = dateStr.match(/T(\d{2})/);
+        const hour = hourMatch ? parseInt(hourMatch[1], 10) : 0;
+        if (hour >= 0 && hour <= 24) fuelByHour[hour] = item;
+      });
+    }
+    const pricingByHour: Record<number, LMPDataPoint> = {};
+    if (pricingData && pricingData.length > 0) {
+      pricingData.forEach(point => {
+        const hourMatch = point.time.match(/T(\d{2})/);
+        const hour = hourMatch ? parseInt(hourMatch[1], 10) : 0;
+        if (hour >= 0 && hour <= 24) pricingByHour[hour] = point;
+      });
+    }
+    combinedData = Array.from({ length: 25 }, (_, hour) => ({
+      hour,
+      ...extractFuels(fuelByHour[hour], true),
+      ...extractPricing(pricingByHour[hour]),
+    }));
+
+  } else if (granularity === 'monthly') {
+    // Day-keyed: period = day number (1–31)
+    const pricingByDay: Record<number, LMPDataPoint> = {};
+    if (pricingData && pricingData.length > 0) {
+      pricingData.forEach(point => {
+        const day = parseInt(point.time.split('-')[2], 10);
+        if (day >= 1 && day <= 31) pricingByDay[day] = point;
+      });
+    }
+    combinedData = fuelMixData.map(item => {
+      const day = parseInt(item.date.split('-')[2], 10);
+      return {
+        period: day,
+        ...extractFuels(item, false),
+        ...extractPricing(pricingByDay[day]),
+      };
+    });
+
+  } else {
+    // Yearly: period = month number (1–12)
+    const pricingByMonth: Record<number, LMPDataPoint> = {};
+    if (pricingData && pricingData.length > 0) {
+      pricingData.forEach(point => {
+        const month = parseInt(point.time.split('-')[1], 10);
+        if (month >= 1 && month <= 12) pricingByMonth[month] = point;
+      });
+    }
+    combinedData = fuelMixData.map(item => {
+      const month = parseInt(item.date.split('-')[1], 10);
+      return {
+        period: month,
+        ...extractFuels(item, false),
+        ...extractPricing(pricingByMonth[month]),
+      };
+    });
+  }
 
   // Determine which data keys have actual content (non-zero values)
   const hasDataForKey = (key: DataKey): boolean => {
@@ -367,10 +416,10 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border-lighter)" />
           
           <XAxis 
-            dataKey="hour" 
+            dataKey={xAxisDataKey}
             stroke="var(--text-primary)"
             label={{ 
-              value: getFormattedDate(), 
+              value: xAxisLabel, 
               position: "insideBottom", 
               offset: -10, 
               fill: "var(--text-primary)", 
@@ -379,6 +428,7 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
             }}
             tick={{ fill: "var(--text-primary)", fontSize: "var(--font-xs)" }}
             height={40}
+            {...(granularity === 'yearly' ? { tickFormatter: (v: number) => MONTH_NAMES[v] || '' } : {})}
           />
           
           {/* Left Y-axis for Generation */}
@@ -418,7 +468,7 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
             } : undefined}
           />
           
-          <Tooltip content={<CustomTooltip keysWithData={keysWithData} />} />
+          <Tooltip content={<CustomTooltip keysWithData={keysWithData} granularity={granularity} />} />
           
           {/* Stacked areas for fuel mix (right Y-axis) */}
           {/* Render in REVERSE of tooltip order so visual top-to-bottom matches tooltip top-to-bottom */}

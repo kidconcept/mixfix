@@ -190,6 +190,24 @@ export function getBATimezone(code: string): string {
   return isValidIANATimezone(ba.timezone) ? ba.timezone : "UTC";
 }
 
+const IANA_TO_EIA_TIMEZONE: Record<string, string> = {
+  "America/New_York": "Eastern",
+  "America/Chicago": "Central",
+  "America/Denver": "Mountain",
+  "America/Los_Angeles": "Pacific",
+  "America/Phoenix": "Arizona",
+};
+
+/**
+ * Map a BA's IANA timezone to the EIA daily endpoint's timezone facet value.
+ * The EIA daily endpoint returns one row per timezone per fuel type per day,
+ * so filtering to the correct timezone is mandatory to avoid 5x duplicate rows.
+ */
+export function getEIATimezone(code: string): string {
+  const iana = getBATimezone(code);
+  return IANA_TO_EIA_TIMEZONE[iana] ?? "Eastern";
+}
+
 export function getBATimezoneInfo(code: string, date: Date = new Date()): BATimezoneInfo {
   const iana = getBATimezone(code);
 

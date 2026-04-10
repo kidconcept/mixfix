@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { fetchEIAFuelMix } from "@/lib/data/eia/fuel";
+import { fetchEIAFuelMix, fetchEIADailyFuelMix, aggregateToMonthly } from "@/lib/data/eia/fuel";
 import { 
-  fetchGridStatusPricing, 
+  fetchGridStatusPricing,
+  fetchGridStatusPricingResampled,
   isPricingSupported
 } from "@/lib/data/gridStatus/pricing";
 import { 
@@ -15,6 +16,8 @@ import {
   cacheSet,
   pricingCacheKey,
   fuelMixCacheKey,
+  dailyFuelCacheKey,
+  resampledPricingCacheKey,
   type CacheEntry,
 } from "@/lib/data/cache/kv";
 import type { LMPDataPoint, HistoricalRecord } from "@/types/energy";
@@ -88,13 +91,13 @@ export async function GET(request: Request) {
             summary: generateQualitySummary(validatePricingData(cached.data, date)),
             cached: true,
             cacheComplete: true,
-            hours: cached.hours,
+            records: cached.records,
           },
         });
       }
 
       if (cached) {
-        console.log(`[Cache] HIT (incomplete, ${cached.hours}/25 hours) ${cacheKey}`);
+        console.log(`[Cache] HIT (incomplete, ${cached.records}/25 hours) ${cacheKey}`);
       } else {
         console.log(`[Cache] MISS ${cacheKey}`);
       }
@@ -125,7 +128,7 @@ export async function GET(request: Request) {
               summary: generateQualitySummary(validatePricingData(cached.data, date)),
               cached: true,
               cacheComplete: false,
-              hours: cached.hours,
+              records: cached.records,
             },
           });
         }
@@ -142,16 +145,16 @@ export async function GET(request: Request) {
         );
       }
 
-      // Store in cache (update only if we got more hours than before)
-      const newHours = result.data.length;
-      if (!cached || newHours >= cached.hours) {
+      // Store in cache (update only if we got more records than before)
+      const newRecords = result.data.length;
+      if (!cached || newRecords >= cached.records) {
         await cacheSet<LMPDataPoint[]>(cacheKey, {
           data: result.data,
-          hours: newHours,
-          complete: newHours >= 25,
+          records: newRecords,
+          complete: newRecords >= 25,
           fetchedAt: new Date().toISOString(),
         });
-        console.log(`[Cache] SET ${cacheKey} (${newHours}/25 hours, complete=${newHours >= 25})`);
+        console.log(`[Cache] SET ${cacheKey} (${newRecords}/25 hours, complete=${newRecords >= 25})`);
       }
 
       // Validate data quality
@@ -168,8 +171,215 @@ export async function GET(request: Request) {
           date,
           summary: generateQualitySummary(quality),
           cached: false,
-          cacheComplete: newHours >= 25,
-          hours: newHours,
+          cacheComplete: newRecords >= 25,
+          records: newRecords,
+        },
+      });
+    }
+
+    // =========================================================================
+    // MONTHLY VIEW: EIA daily + optional Grid Status resampled pricing
+    // =========================================================================
+    if (view === "monthly") {
+      if (!balancingAuthority) {
+        return NextResponse.json(
+          { error: "Location parameter is required for monthly view" },
+          { status: 400 }
+        );
+      }
+
+      // Derive month boundaries from date
+      const [year, month] = date.split("-");
+      const yearMonth = `${year}-${month}`;
+      const startDate = `${yearMonth}-01`;
+      const lastDay = new Date(Number(year), Number(month), 0).getDate();
+      const endDate = `${yearMonth}-${String(lastDay).padStart(2, "0")}`;
+      const now = new Date();
+      const isPastMonth = new Date(Number(year), Number(month), 0) < now;
+
+      // --- Fuel mix (cache-first) ---
+      const fmKey = dailyFuelCacheKey(balancingAuthority, yearMonth);
+      const fmCached = await cacheGet<HistoricalRecord[]>(fmKey);
+
+      let fuelData: HistoricalRecord[];
+      let fuelCached = false;
+
+      if (fmCached?.complete) {
+        console.log(`[Cache] HIT (complete) ${fmKey}`);
+        fuelData = fmCached.data;
+        fuelCached = true;
+      } else {
+        if (fmCached) {
+          console.log(`[Cache] HIT (incomplete, ${fmCached.records}/${lastDay} days) ${fmKey}`);
+        } else {
+          console.log(`[Cache] MISS ${fmKey}`);
+        }
+
+        const fuelResult = await fetchEIADailyFuelMix(balancingAuthority, startDate, endDate);
+        if (!fuelResult.success) {
+          if (fmCached) {
+            console.log(`[Cache] Serving stale incomplete data after fetch failure ${fmKey}`);
+            fuelData = fmCached.data;
+            fuelCached = true;
+          } else {
+            return NextResponse.json(
+              { error: "Failed to fetch monthly fuel mix data", details: fuelResult.error.message },
+              { status: 500 }
+            );
+          }
+        } else {
+          fuelData = fuelResult.data;
+          const fuelRecords = fuelData.length;
+          if (!fmCached || fuelRecords >= fmCached.records) {
+            await cacheSet<HistoricalRecord[]>(fmKey, {
+              data: fuelData,
+              records: fuelRecords,
+              complete: isPastMonth && fuelRecords >= lastDay,
+              fetchedAt: new Date().toISOString(),
+            });
+            console.log(`[Cache] SET ${fmKey} (${fuelRecords}/${lastDay} days, complete=${isPastMonth && fuelRecords >= lastDay})`);
+          }
+        }
+      }
+
+      // --- Pricing (optional, cache-first) ---
+      let pricingData: LMPDataPoint[] | undefined;
+      if (node && isPricingSupported(balancingAuthority)) {
+        const pKey = resampledPricingCacheKey(balancingAuthority, node, yearMonth);
+        const pCached = await cacheGet<LMPDataPoint[]>(pKey);
+
+        if (pCached?.complete) {
+          console.log(`[Cache] HIT (complete) ${pKey}`);
+          pricingData = pCached.data;
+        } else {
+          const pResult = await fetchGridStatusPricingResampled(
+            balancingAuthority, node, startDate, endDate, "1 day"
+          );
+          if (pResult.success) {
+            pricingData = pResult.data;
+            const pRecords = pricingData.length;
+            if (!pCached || pRecords >= pCached.records) {
+              await cacheSet<LMPDataPoint[]>(pKey, {
+                data: pricingData,
+                records: pRecords,
+                complete: isPastMonth && pRecords >= lastDay,
+                fetchedAt: new Date().toISOString(),
+              });
+              console.log(`[Cache] SET ${pKey} (${pRecords}/${lastDay} days)`);
+            }
+          } else if (pCached) {
+            pricingData = pCached.data;
+          }
+          // If fetch fails and no cache, pricing is simply omitted
+        }
+      }
+
+      return NextResponse.json({
+        hourly: fuelData,
+        ...(pricingData && { lmp: pricingData }),
+        quality: {
+          confidence: fuelData.length > 0 ? "high" : "critical",
+          warnings: [],
+          errors: [],
+          missingHours: [],
+          totalHours: fuelData.length,
+          completenessPercent: 100,
+        },
+        meta: {
+          source: "eia",
+          view: "monthly",
+          granularity: "monthly",
+          location: balancingAuthority,
+          date,
+          recordCount: fuelData.length,
+          cached: fuelCached,
+          records: fuelData.length,
+          hasPricing: !!pricingData,
+        },
+      });
+    }
+
+    // =========================================================================
+    // YEARLY VIEW: EIA daily → aggregate + optional Grid Status resampled pricing
+    // =========================================================================
+    if (view === "yearly") {
+      if (!balancingAuthority) {
+        return NextResponse.json(
+          { error: "Location parameter is required for yearly view" },
+          { status: 400 }
+        );
+      }
+
+      const year = date.split("-")[0];
+      const startDate = `${year}-01-01`;
+      const endDate = `${year}-12-31`;
+      const isPastYear = Number(year) < new Date().getFullYear();
+
+      // --- Fuel mix (no cache in v1 — fetch + aggregate) ---
+      const fuelResult = await fetchEIADailyFuelMix(balancingAuthority, startDate, endDate);
+      let fuelData: HistoricalRecord[];
+
+      if (!fuelResult.success) {
+        return NextResponse.json(
+          { error: "Failed to fetch yearly fuel mix data", details: fuelResult.error.message },
+          { status: 500 }
+        );
+      }
+
+      fuelData = aggregateToMonthly(fuelResult.data);
+
+      // --- Pricing (optional, cached) ---
+      let pricingData: LMPDataPoint[] | undefined;
+      if (node && isPricingSupported(balancingAuthority)) {
+        const pKey = resampledPricingCacheKey(balancingAuthority, node, year);
+        const pCached = await cacheGet<LMPDataPoint[]>(pKey);
+
+        if (pCached?.complete) {
+          console.log(`[Cache] HIT (complete) ${pKey}`);
+          pricingData = pCached.data;
+        } else {
+          const pResult = await fetchGridStatusPricingResampled(
+            balancingAuthority, node, startDate, endDate, "1 month"
+          );
+          if (pResult.success) {
+            pricingData = pResult.data;
+            const pRecords = pricingData.length;
+            if (!pCached || pRecords >= pCached.records) {
+              await cacheSet<LMPDataPoint[]>(pKey, {
+                data: pricingData,
+                records: pRecords,
+                complete: isPastYear && pRecords >= 12,
+                fetchedAt: new Date().toISOString(),
+              });
+              console.log(`[Cache] SET ${pKey} (${pRecords}/12 months)`);
+            }
+          } else if (pCached) {
+            pricingData = pCached.data;
+          }
+        }
+      }
+
+      return NextResponse.json({
+        hourly: fuelData,
+        ...(pricingData && { lmp: pricingData }),
+        quality: {
+          confidence: fuelData.length > 0 ? "high" : "critical",
+          warnings: [],
+          errors: [],
+          missingHours: [],
+          totalHours: fuelData.length,
+          completenessPercent: 100,
+        },
+        meta: {
+          source: "eia",
+          view: "yearly",
+          granularity: "yearly",
+          location: balancingAuthority,
+          date,
+          recordCount: fuelData.length,
+          cached: false,
+          records: fuelData.length,
+          hasPricing: !!pricingData,
         },
       });
     }
@@ -206,13 +416,13 @@ export async function GET(request: Request) {
           timestamp: fmCached.fetchedAt,
           cached: true,
           cacheComplete: true,
-          hours: fmCached.hours,
+          records: fmCached.records,
         },
       });
     }
 
     if (fmCached) {
-      console.log(`[Cache] HIT (incomplete, ${fmCached.hours}/25 hours) ${fmCacheKey}`);
+      console.log(`[Cache] HIT (incomplete, ${fmCached.records}/25 hours) ${fmCacheKey}`);
     } else {
       console.log(`[Cache] MISS ${fmCacheKey}`);
     }
@@ -249,7 +459,7 @@ export async function GET(request: Request) {
             timestamp: fmCached.fetchedAt,
             cached: true,
             cacheComplete: false,
-            hours: fmCached.hours,
+            records: fmCached.records,
           },
         });
       }
@@ -266,16 +476,16 @@ export async function GET(request: Request) {
       );
     }
 
-    // Store in cache (update only if we got more hours than before)
-    const fmHours = result.data.length;
-    if (!fmCached || fmHours >= fmCached.hours) {
+    // Store in cache (update only if we got more records than before)
+    const fmRecords = result.data.length;
+    if (!fmCached || fmRecords >= fmCached.records) {
       await cacheSet<HistoricalRecord[]>(fmCacheKey, {
         data: result.data,
-        hours: fmHours,
-        complete: fmHours >= 25,
+        records: fmRecords,
+        complete: fmRecords >= 25,
         fetchedAt: new Date().toISOString(),
       });
-      console.log(`[Cache] SET ${fmCacheKey} (${fmHours}/25 hours, complete=${fmHours >= 25})`);
+      console.log(`[Cache] SET ${fmCacheKey} (${fmRecords}/25 hours, complete=${fmRecords >= 25})`);
     }
 
     // Validate data quality
@@ -294,8 +504,8 @@ export async function GET(request: Request) {
         recordCount: result.data.length,
         timestamp: new Date().toISOString(),
         cached: false,
-        cacheComplete: fmHours >= 25,
-        hours: fmHours,
+        cacheComplete: fmRecords >= 25,
+        records: fmRecords,
       },
     });
 

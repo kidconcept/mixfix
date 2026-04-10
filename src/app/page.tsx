@@ -8,6 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
 import { hasPricingData, getBAConfig, getZoneName } from "@/lib/config/balancing-authorities";
+import type { Granularity } from "@/types/energy";
 
 const BAMap = dynamic(() => import("@/components/BAMap"), { ssr: false });
 
@@ -130,13 +131,17 @@ export default function Home() {
   const [pricingRetryCount, setPricingRetryCount] = useState(0);
   const [gridStatusQuotaExceeded, setGridStatusQuotaExceeded] = useState(false);
   const [showMapPanel, setShowMapPanel] = useState(false);
+  const [granularity, setGranularity] = useState<Granularity>('daily');
   
   // Derive SWR keys reactively from state - ensures chart always syncs with BA/Zone fields
   const fuelMixKey = balancingAuthority 
-    ? `/api/energy?date=${date}&location=${balancingAuthority}${fuelMixRetryCount > 0 ? `&retry=${fuelMixRetryCount}` : ""}`
+    ? granularity === 'daily'
+      ? `/api/energy?date=${date}&location=${balancingAuthority}${fuelMixRetryCount > 0 ? `&retry=${fuelMixRetryCount}` : ""}`
+      : `/api/energy?date=${date}&location=${balancingAuthority}&view=${granularity}${zone ? `&node=${zone}` : ""}${fuelMixRetryCount > 0 ? `&retry=${fuelMixRetryCount}` : ""}`
     : null;
 
-  const pricingKey = (balancingAuthority && zone && hasPricingData(balancingAuthority))
+  // Separate pricing key only for daily view; monthly/yearly include pricing in the main response
+  const pricingKey = (granularity === 'daily' && balancingAuthority && zone && hasPricingData(balancingAuthority))
     ? `/api/energy?date=${date}&location=${balancingAuthority}&view=pricing&node=${zone}${pricingRetryCount > 0 ? `&retry=${pricingRetryCount}` : ""}`
     : null;
   
@@ -339,7 +344,7 @@ export default function Home() {
   const hasFuelMixData = !!fuelMixData;
   const hasAnyData = hasPricingDataLoaded || hasFuelMixData; // Show chart with any available data
 
-  const displayPricingData = pricingData?.lmp;
+  const displayPricingData = granularity === 'daily' ? pricingData?.lmp : fuelMixData?.lmp;
 
   const statusMessageNode = (() => {
     const messages: React.ReactNode[] = [];
@@ -442,14 +447,46 @@ export default function Home() {
 
           {/* Date Field */}
           <div className="flex flex-col form-field-block">
-            <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Date</label>
+            <div className="flex gap-1" style={{ fontSize: 'var(--font-form-xs)' }}>
+              {(['daily', 'monthly', 'yearly'] as Granularity[]).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => {
+                    setGranularity(g);
+                    setFuelMixRetryCount(0);
+                    setPricingRetryCount(0);
+                  }}
+                  className="font-semibold px-1.5 rounded transition-colors"
+                  style={{
+                    backgroundColor: granularity === g ? 'var(--bg-secondary)' : 'transparent',
+                    color: granularity === g ? 'var(--text-primary)' : 'var(--interactive-primary)',
+                  }}
+                >
+                  {g === 'daily' ? 'Day' : g === 'monthly' ? 'Month' : 'Year'}
+                </button>
+              ))}
+            </div>
             <div className="flex items-center gap-0">
             <div 
-              className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
-              style={{ borderColor: (dateFocused || dateHovered) ? 'var(--active)' : 'var(--border-subtle)', height: 'var(--form-height)', paddingLeft: '3px' }}
+              className="relative inline-flex items-center justify-center border rounded-lg px-2 transition-all form-field-shell" 
+              style={{ borderColor: (dateFocused || dateHovered) ? 'var(--interactive-primary)' : 'var(--border-subtle)', height: 'var(--form-height)' }}
               onMouseEnter={() => setDateHovered(true)}
               onMouseLeave={() => setDateHovered(false)}
+              onClick={() => dateInputRef.current?.showPicker?.()}
             >
+              {granularity !== 'daily' && !dateFocused && (
+                <span
+                  className="absolute inset-0 flex items-center justify-center font-medium pointer-events-none"
+                  style={{ color: 'var(--text-primary)', fontSize: 'var(--font-form-base)', whiteSpace: 'nowrap' }}
+                >
+                  {(() => {
+                    const [y, m] = date.split('-');
+                    const monthName = new Date(Number(y), Number(m) - 1).toLocaleDateString('en-US', { month: 'short' });
+                    return granularity === 'monthly' ? `${monthName} ${y}` : y;
+                  })()}
+                </span>
+              )}
               <input
                 ref={dateInputRef}
                 type="date"
@@ -471,8 +508,13 @@ export default function Home() {
                     e.currentTarget.blur();
                   }
                 }}
-                className="font-medium focus:outline-none bg-transparent"
-                style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)', fieldSizing: 'content' }}
+                className="font-medium focus:outline-none bg-transparent text-center"
+                style={{
+                  color: granularity !== 'daily' && !dateFocused ? 'transparent' : 'var(--text-primary)',
+                  height: 'var(--input-height)',
+                  fontSize: 'var(--font-form-base)',
+                  fieldSizing: 'content',
+                }}
               />
             </div>
             </div>
@@ -485,7 +527,7 @@ export default function Home() {
             <div className="flex items-center gap-0">
               <div 
                 className="relative inline-flex items-center border rounded-lg pr-2 transition-all form-field-shell" 
-                style={{ borderColor: (addressFocused || addressHovered) ? 'var(--active)' : 'var(--border-subtle)', height: 'var(--form-height)', paddingLeft: '3px' }}
+                style={{ borderColor: (addressFocused || addressHovered) ? 'var(--interactive-primary)' : 'var(--border-subtle)', height: 'var(--form-height)', paddingLeft: '3px' }}
                 onMouseEnter={() => setAddressHovered(true)}
                 onMouseLeave={() => setAddressHovered(false)}
               >
@@ -545,11 +587,11 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setShowMapPanel((prev) => !prev)}
-              onMouseEnter={(e) => { if (!showMapPanel) e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'; }}
-              onMouseLeave={(e) => { if (!showMapPanel) e.currentTarget.style.backgroundColor = 'var(--bg-primary)'; }}
+              onMouseEnter={(e) => { if (!showMapPanel) { e.currentTarget.style.borderColor = 'var(--interactive-primary)'; e.currentTarget.style.color = 'var(--interactive-primary)'; } }}
+              onMouseLeave={(e) => { if (!showMapPanel) { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
               className="px-3 py-1.5 font-medium rounded-lg transition-colors"
               style={{
-                backgroundColor: showMapPanel ? "var(--active)" : "var(--bg-primary)",
+                backgroundColor: showMapPanel ? "var(--bg-secondary)" : "var(--bg-primary)",
                 color: "var(--text-primary)",
                 border: "1px solid var(--border-subtle)",
                 height: 'var(--form-height)',
@@ -578,11 +620,11 @@ export default function Home() {
         {/* Grid / Zone summary line */}
         {balancingAuthority && (
           <div className="mt-1 text-sm">
-            Fuel mix in the{' '}
+            Fuel mix across{' '}
             <span>{getBAConfig(balancingAuthority)?.name || balancingAuthority}</span>
             {' '}BA
             {supportsPricing && zone && (
-              <>, Pricing in{' '}
+              <>, Pricing across{' '}
                 <span>{getZoneName(balancingAuthority, zone) || zone}</span>
                 {' '}Zone
               </>
@@ -615,6 +657,7 @@ export default function Home() {
                 balancingAuthority={balancingAuthority}
                 baName={balancingAuthority}
                 zoneName={zone}
+                granularity={granularity}
               />
               {(fuelMixData?.meta || pricingData?.meta) && (
                 <div className="text-sm text-left space-y-1 data-sources-footer" style={{ color: 'var(--text-secondary)' }}>
@@ -637,15 +680,19 @@ export default function Home() {
                         {fuelMixData.meta.location}
                       </span>
                       <span>→</span>
-                      <span>Hourly fuel mix generation data</span>
+                      <span>
+                        {granularity === 'daily' ? 'Hourly fuel mix generation data'
+                          : granularity === 'monthly' ? 'Daily avg fuel mix generation data'
+                          : 'Monthly avg fuel mix generation data'}
+                      </span>
                       <span style={{ color: 'var(--text-tertiary)' }}>
                         {fuelMixData.meta.cached
                           ? fuelMixData.meta.cacheComplete
                             ? '(cached)'
-                            : `(cached, ${fuelMixData.meta.hours} of 25 hours)`
+                            : `(cached, ${fuelMixData.meta.records} records)`
                           : fuelMixData.meta.cacheComplete
                             ? '(live)'
-                            : `(live, ${fuelMixData.meta.hours} of 25 hours)`
+                            : `(live, ${fuelMixData.meta.records} records)`
                         }
                       </span>
                     </div>
@@ -674,10 +721,10 @@ export default function Home() {
                         {pricingData.meta.cached
                           ? pricingData.meta.cacheComplete
                             ? '(cached)'
-                            : `(cached, ${pricingData.meta.hours} of 25 hours)`
+                            : `(cached, ${pricingData.meta.records} records)`
                           : pricingData.meta.cacheComplete
                             ? '(live)'
-                            : `(live, ${pricingData.meta.hours} of 25 hours)`
+                            : `(live, ${pricingData.meta.records} records)`
                         }
                       </span>
                     </div>

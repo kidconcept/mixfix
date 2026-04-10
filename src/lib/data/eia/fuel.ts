@@ -13,11 +13,12 @@
 
 import { HistoricalRecord, EnergySource } from "@/types/energy";
 import { eiaQueue, RequestResult } from "../queue/requestQueue";
-import { getBATimezone, getEIACode } from "../../config/balancing-authorities";
+import { getBATimezone, getEIACode, getEIATimezone } from "../../config/balancing-authorities";
 import { convertUTCToLocalDate, convertUTCToLocalHour, getUTCWindowForLocalDate } from "../../timezone";
 
 const EIA_BASE = "https://api.eia.gov/v2";
 const EIA_RTO_ENDPOINT = `${EIA_BASE}/electricity/rto/fuel-type-data/data/`;
+const EIA_DAILY_ENDPOINT = `${EIA_BASE}/electricity/rto/daily-fuel-type-data/data/`;
 
 // EIA fuel type ID to our standardized energy source
 const FUELTYPEID_MAP: Record<string, EnergySource> = {
@@ -267,4 +268,187 @@ function transformEIAData(rows: EIARow[], date: string, balancingAuthority: stri
   }
 
   return records;
+}
+
+// ---------------------------------------------------------------------------
+// EIA Daily Fuel Mix (for monthly / yearly views)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch daily fuel mix data from the EIA daily endpoint for a date range.
+ *
+ * @param balancingAuthority - ISO/RTO code or 2-letter state code
+ * @param startDate - Start date in YYYY-MM-DD format
+ * @param endDate - End date in YYYY-MM-DD format
+ * @returns Promise with daily records (one per day, values in avg GW)
+ */
+export async function fetchEIADailyFuelMix(
+  balancingAuthority: string,
+  startDate: string,
+  endDate: string
+): Promise<RequestResult<HistoricalRecord[]>> {
+  const apiKey = process.env.EIA_API_KEY;
+
+  if (!apiKey) {
+    return {
+      success: false,
+      error: { type: 'validation', message: 'EIA_API_KEY not configured', retryable: false },
+    };
+  }
+
+  const params = buildDailyParams(apiKey, balancingAuthority, startDate, endDate);
+  const url = `${EIA_DAILY_ENDPOINT}?${params}`;
+
+  console.log(`[EIA-Daily] Fetching ${balancingAuthority} ${startDate}..${endDate}`);
+  console.log(`[EIA-Daily] URL: ${url}`);
+
+  const startTime = Date.now();
+
+  const result = await eiaQueue.request(
+    async () => {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const json: any = await response.json().catch(() => ({}));
+
+        if (response.status === 429 || json.error?.message?.toLowerCase().includes('rate limit')) {
+          const error: any = new Error(`EIA API rate limit exceeded: ${json.error?.message || 'Too many requests'}`);
+          error.statusCode = 429;
+          error.rateLimitExceeded = true;
+          throw error;
+        }
+
+        const error: any = new Error(`EIA API error: ${response.status} ${response.statusText}`);
+        error.statusCode = response.status;
+        throw error;
+      }
+
+      const json: EIAResponse = await response.json();
+      const rawRows = json.response?.data ?? [];
+      console.log(`[EIA-Daily] Received ${rawRows.length} raw rows`);
+      return rawRows;
+    },
+    { timeout: 30000, maxRetries: 3, retryDelay: 1000 }
+  );
+
+  if (!result.success) return result;
+
+  const records = transformDailyEIAData(result.data);
+  console.log(`[EIA-Daily] ${result.data.length} rows → ${records.length} daily records (${Date.now() - startTime}ms)`);
+
+  return { success: true, data: records };
+}
+
+function buildDailyParams(
+  apiKey: string,
+  balancingAuthority: string,
+  startDate: string,
+  endDate: string
+): URLSearchParams {
+  const params = new URLSearchParams();
+
+  params.set("api_key", apiKey);
+  params.append("data[0]", "value");
+  params.set("start", startDate);
+  params.set("end", endDate);
+  params.set("sort[0][column]", "period");
+  params.set("sort[0][direction]", "asc");
+  params.set("length", "4000");
+
+  // Timezone facet — critical to avoid 5x duplicate rows
+  const eiaTimezone = getEIATimezone(balancingAuthority);
+  params.append("facets[timezone][]", eiaTimezone);
+
+  // Location facet
+  const upperLoc = balancingAuthority.toUpperCase();
+  const eiaCode = getEIACode(upperLoc);
+
+  if (eiaCode) {
+    params.append("facets[respondent][]", eiaCode);
+  } else if (upperLoc.length === 2) {
+    params.append("facets[stateid][]", upperLoc);
+  }
+
+  return params;
+}
+
+/**
+ * Transform daily EIA rows → one HistoricalRecord per day.
+ * Values converted from daily MWh to avg GW (÷ 24 ÷ 1000).
+ */
+function transformDailyEIAData(rows: EIARow[]): HistoricalRecord[] {
+  const dayMap = new Map<string, Map<EnergySource, number>>();
+
+  for (const row of rows) {
+    if (!row.period) continue;
+
+    const day = row.period; // YYYY-MM-DD
+    if (!dayMap.has(day)) dayMap.set(day, new Map());
+    const sources = dayMap.get(day)!;
+
+    const source: EnergySource = FUELTYPEID_MAP[row.fueltype] ?? "other";
+    const current = sources.get(source) ?? 0;
+    sources.set(source, current + row.value / 24 / 1000); // daily MWh → avg GW
+  }
+
+  const records: HistoricalRecord[] = [];
+  const sortedDays = Array.from(dayMap.keys()).sort();
+
+  for (const day of sortedDays) {
+    const sources = dayMap.get(day)!;
+    const record: HistoricalRecord = { date: day };
+    for (const [source, value] of sources.entries()) {
+      record[source] = value;
+    }
+    records.push(record);
+  }
+
+  return records;
+}
+
+// ---------------------------------------------------------------------------
+// Aggregation helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Average daily records into monthly records (for yearly view).
+ * Groups by YYYY-MM prefix, averages each fuel type across days.
+ */
+export function aggregateToMonthly(dailyRecords: HistoricalRecord[]): HistoricalRecord[] {
+  const monthMap = new Map<string, { records: HistoricalRecord[]; fuels: Set<string> }>();
+
+  for (const rec of dailyRecords) {
+    const month = rec.date.slice(0, 7); // YYYY-MM
+    if (!monthMap.has(month)) monthMap.set(month, { records: [], fuels: new Set() });
+    const entry = monthMap.get(month)!;
+    entry.records.push(rec);
+    for (const key of Object.keys(rec)) {
+      if (key !== "date" && typeof rec[key] === "number") entry.fuels.add(key);
+    }
+  }
+
+  const result: HistoricalRecord[] = [];
+  const sortedMonths = Array.from(monthMap.keys()).sort();
+
+  for (const month of sortedMonths) {
+    const { records, fuels } = monthMap.get(month)!;
+    const avg: HistoricalRecord = { date: month };
+
+    for (const fuel of fuels) {
+      let sum = 0;
+      let count = 0;
+      for (const rec of records) {
+        const val = rec[fuel];
+        if (typeof val === "number") {
+          sum += val;
+          count++;
+        }
+      }
+      if (count > 0) avg[fuel] = sum / count;
+    }
+
+    result.push(avg);
+  }
+
+  return result;
 }
