@@ -410,6 +410,13 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
     });
   };
 
+  // Build chart title from short codes
+  const chartTitle = balancingAuthority
+    ? zoneName
+      ? `Fuel mix across ${balancingAuthority} BA, Pricing across ${zoneName} Zone.`
+      : `Fuel mix across ${balancingAuthority} BA.`
+    : '';
+
   // Create a Set of keys that have data for filtering tooltip
   const keysWithData = new Set<DataKey>(
     ['solar', 'wind', 'hydro', 'geothermal', 'biomass', 'batteries', 'imports', 'other', 
@@ -427,12 +434,23 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
         <ComposedChart
           data={combinedData}
           margin={{
-            top: 0,
+            top: chartTitle ? 20 : 0,
             right: 0,
             left: 0,
             bottom: 25,
           }}
         >
+          {chartTitle && (
+            <text
+              x="50%"
+              y={12}
+              textAnchor="middle"
+              fill="var(--text-secondary)"
+              fontSize="var(--font-sm)"
+            >
+              {chartTitle}
+            </text>
+          )}
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border-lighter)" />
           
           <XAxis 

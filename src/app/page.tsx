@@ -620,21 +620,6 @@ export default function Home() {
 
         </div>{/* End Top Row */}
 
-        {/* Grid / Zone summary line */}
-        {balancingAuthority && (
-          <div className="mt-1 text-sm" style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
-            <span style={{ whiteSpace: 'nowrap' }}>Fuel mix across{' '}
-            {getBAConfig(balancingAuthority)?.name || balancingAuthority}
-            {' '}BA{supportsPricing && zone ? ',' : '.'}</span>
-            {supportsPricing && zone && (
-              <>{' '}<span style={{ whiteSpace: 'nowrap' }}>Pricing across{' '}
-                {getZoneName(balancingAuthority, zone) || zone}
-                {' '}Zone.</span>
-              </>
-            )}
-          </div>
-        )}
-
         {/* Data Display */}
         <div className="mt-4 data-display-container">
           {/* Loading animation while waiting for data */}
