@@ -247,8 +247,8 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
   const extractFuels = (fuelData: HistoricalRecord | undefined, splitCharging: boolean) => {
     if (!fuelData) {
       return {
-        solar: 0, wind: 0, hydro: 0, geothermal: 0, biomass: 0, batteries: 0,
-        imports: 0, other: 0, nuclear: 0, gas: 0, coal: 0, oil: 0, charging: 0,
+        solar: null, wind: null, hydro: null, geothermal: null, biomass: null, batteries: null,
+        imports: null, other: null, nuclear: null, gas: null, coal: null, oil: null, charging: null,
       };
     }
     const raw = {
