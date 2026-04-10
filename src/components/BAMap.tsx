@@ -315,7 +315,7 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
             {/* Inline description */}
             {balancingAuthority && (
               <div className="shrink-0 pb-1" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-base)' }}>
-                Fuel mix in the {baConfig?.name || balancingAuthority} BA{supportsPricing && zone ? `, Pricing in ${getZonesWithNames(balancingAuthority).find(z => z.code === zone)?.name || zone} Zone` : ''}.
+                Fuel mix across {baConfig?.name || balancingAuthority} BA{supportsPricing && zone ? `, Pricing across ${getZonesWithNames(balancingAuthority).find(z => z.code === zone)?.name || zone} Zone` : ''}.
               </div>
             )}
           </div>
