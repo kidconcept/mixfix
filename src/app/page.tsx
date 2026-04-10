@@ -440,13 +440,13 @@ export default function Home() {
       <main className="min-h-screen w-[80%] mx-auto" style={{ padding: 'clamp(1.5rem, 2vw, 4rem) clamp(1rem, 2vw, 3rem)' }}>
         {/* Top Row: Brand + Fields + Status */}
         <div className="flex flex-wrap gap-2 items-baseline form-fields-group">
-          <div className="flex flex-col">
+          <div className="flex flex-col field-brand">
             <label className="font-semibold pr-2" style={{ color: 'transparent', fontSize: 'var(--font-form-xs)' }}>.</label>
             <div className="font-bold text-2xl mixfix-brand-title" style={{ color: 'var(--text-primary)', marginRight: '0.5rem', height: 'var(--form-height)', display: 'flex', alignItems: 'center' }}>mixfix</div>
           </div>
 
           {/* Date Field */}
-          <div className="flex flex-col form-field-block">
+          <div className="flex flex-col form-field-block field-date">
             <div className="flex gap-1" style={{ fontSize: 'var(--font-form-xs)' }}>
               {(['daily', 'monthly', 'yearly'] as Granularity[]).map((g) => (
                 <button
@@ -521,7 +521,7 @@ export default function Home() {
           </div>
 
           {/* Address Field */}
-          <div className="flex flex-col form-field-block">
+          <div className="flex flex-col form-field-block field-location">
             <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Location</label>
             <div className="relative">
             <div className="flex items-center gap-0">
@@ -549,7 +549,7 @@ export default function Home() {
                       e.currentTarget.blur();
                     }
                   }}
-                  placeholder="City, County, State"
+                  placeholder="City, State"
                   className="font-medium focus:outline-none bg-transparent"
                   style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)', fieldSizing: 'content' }}
                 />
@@ -582,7 +582,7 @@ export default function Home() {
           </div>
 
           {/* Grid Info Button */}
-          <div className="flex flex-col form-field-block">
+          <div className="flex flex-col form-field-block field-grid-info">
             <label className="font-semibold pr-2" style={{ color: 'transparent', fontSize: 'var(--font-form-xs)' }}>.</label>
             <button
               type="button"
@@ -610,8 +610,11 @@ export default function Home() {
             </button>
           </div>
 
+          {/* Invisible spacer — forces date+location to row 2 on mobile */}
+          <div className="hidden field-row-break" aria-hidden="true" />
+
           {/* Status message */}
-          <div className="flex-1 min-w-[260px] self-end" style={{ paddingBottom: '2px' }}>
+          <div className="flex-1 min-w-[260px] self-end field-status" style={{ paddingBottom: '2px' }}>
             {statusMessageNode}
           </div>
 
@@ -619,17 +622,16 @@ export default function Home() {
 
         {/* Grid / Zone summary line */}
         {balancingAuthority && (
-          <div className="mt-1 text-sm">
-            Fuel mix across{' '}
-            <span>{getBAConfig(balancingAuthority)?.name || balancingAuthority}</span>
-            {' '}BA
+          <div className="mt-1 text-sm" style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+            <span style={{ whiteSpace: 'nowrap' }}>Fuel mix across{' '}
+            {getBAConfig(balancingAuthority)?.name || balancingAuthority}
+            {' '}BA{supportsPricing && zone ? ',' : '.'}</span>
             {supportsPricing && zone && (
-              <>, Pricing across{' '}
-                <span>{getZoneName(balancingAuthority, zone) || zone}</span>
-                {' '}Zone
+              <>{' '}<span style={{ whiteSpace: 'nowrap' }}>Pricing across{' '}
+                {getZoneName(balancingAuthority, zone) || zone}
+                {' '}Zone.</span>
               </>
             )}
-            .
           </div>
         )}
 

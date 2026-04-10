@@ -402,7 +402,7 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
       {/* Chart and Legend Side-by-Side */}
       <div className="flex flex-col landscape:flex-row landscape:gap-6 gap-2">
         {/* Chart */}
-        <div className="flex-1 chart-plot-area" style={{ height: '55vh', minHeight: '400px', maxHeight: '80vh' }}>
+        <div className="flex-1 chart-plot-area" style={{ height: '65vh', minHeight: '480px', maxHeight: '85vh' }}>
           <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
           data={combinedData}

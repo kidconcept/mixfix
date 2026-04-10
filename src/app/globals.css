@@ -229,11 +229,33 @@ input[type="date"] {
     padding-left: 0.5rem;
   }
 
-  /* Portrait form layout: Date/Location on row 1, Grid Area controls on row 2 */
+  /* Portrait form layout: reorder fields */
+  .form-fields-group .field-brand     { order: 1; }
+  .form-fields-group .field-grid-info { order: 2; }
+  .form-fields-group .field-date      { order: 3; }
+  .form-fields-group .field-location  { order: 4; }
+  .form-fields-group .field-status    { order: 5; }
+
+  /* Hide invisible alignment labels on mobile — they add dead vertical space */
+  .form-fields-group .field-brand > label,
+  .form-fields-group .field-grid-info > label {
+    display: none !important;
+  }
+
   .form-fields-group .form-field-block {
     flex: 0 0 auto;
     max-width: none;
     min-width: 0;
+  }
+
+  /* Invisible spacer forces a flex line break between row 1 and row 2 */
+  .form-fields-group .field-row-break {
+    display: block;
+    flex-basis: 100%;
+    height: 0;
+    margin-top: -0.5rem; /* cancel gap-2 above */
+    margin-bottom: -0.5rem; /* cancel gap-2 below */
+    order: 2; /* sits between grid-info (2) and date (3) */
   }
 
   .form-fields-group .form-field-shell,
