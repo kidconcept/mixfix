@@ -19,6 +19,7 @@ export interface BAConfig {
   timezone: string;
   hasPricing: boolean;
   gridStatusDataset?: string;
+  gridStatusSPPDataset?: string;
   zones?: string[];
   representativeZone?: string;
 }
@@ -114,6 +115,14 @@ export function getRepresentativeZone(code: string): string | undefined {
 export function getGridStatusDataset(code: string): string | undefined {
   const ba = getBAConfig(code);
   return ba?.gridStatusDataset;
+}
+
+/**
+ * Get Grid Status SPP dataset for a BA (ERCOT only)
+ */
+export function getGridStatusSPPDataset(code: string): string | undefined {
+  const ba = getBAConfig(code);
+  return ba?.gridStatusSPPDataset;
 }
 
 /**

@@ -41,6 +41,7 @@ export interface LMPDataPoint {
   energy: number; // $/MWh
   congestion: number; // $/MWh
   loss: number; // $/MWh
+  spp?: number; // $/MWh — ERCOT Settlement Point Price
 }
 
 export interface BATimezoneInfo {

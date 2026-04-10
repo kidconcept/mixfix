@@ -52,7 +52,7 @@ const l1 = new Map<string, CacheEntry<unknown>>();
 // ---------------------------------------------------------------------------
 
 export function pricingCacheKey(iso: string, node: string, date: string): string {
-  return `gs:lmp:${iso.toUpperCase()}:${node}:${date}`;
+  return `gs:lmp:v2:${iso.toUpperCase()}:${node}:${date}`;
 }
 
 export function fuelMixCacheKey(ba: string, date: string): string {

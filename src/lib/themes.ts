@@ -28,6 +28,7 @@ export const themes: Theme[] = [
       '--active': '#bce3e7',
       // Pricing: Warm oranges/reds
       '--price-lmp': '#d44a0e',
+      '--price-spp': '#8b1a1a',
       '--price-energy': '#e8743f',
       '--price-congestion': '#e89c79',
       '--price-loss': '#f3e1c0',
@@ -66,6 +67,7 @@ export const themes: Theme[] = [
       '--active': '#238b45',
       // Pricing: Warm yellows/amber
       '--price-lmp': '#fed976',
+      '--price-spp': '#cc3333',
       '--price-energy': '#fecc5c',
       '--price-congestion': '#fdb462',
       '--price-loss': '#fee6b3',

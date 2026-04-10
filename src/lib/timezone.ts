@@ -5,29 +5,6 @@
 import { getBATimezone } from "./config/balancing-authorities";
 
 /**
- * Mapping of ISO/RTO regions to their IANA timezone identifiers
- */
-export const REGION_TIMEZONES: Record<string, string> = {
-  // Eastern Time
-  NYISO: "America/New_York",
-  NYIS: "America/New_York",
-  ISONE: "America/New_York",
-  ISNE: "America/New_York",
-  PJM: "America/New_York", // PJM spans multiple zones, but Eastern is primary
-  
-  // Central Time
-  ERCOT: "America/Chicago",
-  ERCO: "America/Chicago",
-  MISO: "America/Chicago", // MISO spans multiple zones, but Central is primary
-  SPP: "America/Chicago",
-  SWPP: "America/Chicago",
-  
-  // Pacific Time
-  CAISO: "America/Los_Angeles",
-  CISO: "America/Los_Angeles",
-};
-
-/**
  * Get the timezone for a given region
  */
 export function getRegionTimezone(region: string | null): string {
@@ -36,15 +13,8 @@ export function getRegionTimezone(region: string | null): string {
   // Allow direct IANA timezone strings (e.g. "America/Denver").
   if (region.includes("/")) return region;
 
-  const upperRegion = region.toUpperCase();
-
-  // Prefer explicit static ISO map first.
-  if (REGION_TIMEZONES[upperRegion]) {
-    return REGION_TIMEZONES[upperRegion];
-  }
-
-  // Fall back to BA config timezones for non-ISO BAs.
-  return getBATimezone(upperRegion);
+  // Delegate to BA config (supports both ISO codes and EIA codes).
+  return getBATimezone(region.toUpperCase());
 }
 
 function pad2(value: number): string {

@@ -19,6 +19,7 @@ import {
   hasPricingData, 
   getBATimezone,
   getGridStatusDataset, 
+  getGridStatusSPPDataset,
   getRepresentativeZone,
 } from "../../config/balancing-authorities";
 
@@ -27,13 +28,27 @@ const GRID_STATUS_BASE = "https://api.gridstatus.io/v1";
 interface GridStatusLMPRow {
   interval_start_utc: string;
   interval_end_utc: string;
-  market: string;
+  market?: string;
   location: string;
-  location_type: string;
+  location_type?: string;
   lmp: number;
-  energy: number;
-  congestion: number;
-  loss: number;
+  spp?: number;
+  energy: number | null;
+  congestion: number | null;
+  loss: number | null;
+}
+
+/**
+ * Normalize a raw API row: map `spp` → `lmp` for SPP datasets
+ * that return settlement-point prices instead of LMP components.
+ */
+function normalizeRow(raw: Record<string, unknown>): GridStatusLMPRow {
+  const row = raw as unknown as GridStatusLMPRow;
+  // SPP datasets use 'spp' field; fall back to it when 'lmp' is absent
+  if (row.lmp == null && row.spp != null) {
+    row.lmp = row.spp;
+  }
+  return row;
 }
 
 interface GridStatusLMPResponse {
@@ -61,7 +76,8 @@ export function getDefaultPricingNode(iso: string): string {
 }
 
 /**
- * Fetch hourly LMP data for a specific ISO node and date
+ * Fetch hourly LMP data for a specific ISO node and date.
+ * For ERCOT, also fetches SPP data and merges it into the results.
  * 
  * @param iso - ISO/RTO code (e.g., "NYISO", "CAISO")
  * @param node - Node/hub identifier (e.g., "CAPITL", ".H.INTERNAL_HUB")
@@ -100,17 +116,59 @@ export async function fetchGridStatusPricing(
     };
   }
 
+  const timezone = getBATimezone(isoUpper);
+
+  // Fetch primary LMP data
+  const result = await fetchDataset(apiKey, dataset, node, date, timezone);
+
+  if (!result.success) {
+    return result;
+  }
+
+  const records = transformHourlyData(result.data, timezone, date);
+
+  // If a separate SPP dataset exists (ERCOT), fetch and merge it
+  const sppDataset = getGridStatusSPPDataset(isoUpper);
+  if (sppDataset) {
+    const sppResult = await fetchDataset(apiKey, sppDataset, node, date, timezone);
+    if (sppResult.success) {
+      const sppRecords = transformHourlyData(sppResult.data, timezone, date);
+      // Merge SPP values into the primary records by matching time
+      const sppByTime = new Map(sppRecords.map(r => [r.time, r.lmp]));
+      for (const record of records) {
+        const sppValue = sppByTime.get(record.time);
+        if (sppValue != null) {
+          record.spp = sppValue;
+        }
+      }
+    }
+    // If SPP fetch fails, we still return LMP data without SPP
+  }
+
+  return {
+    success: true,
+    data: records,
+  };
+}
+
+/**
+ * Fetch raw rows from a single Grid Status dataset
+ */
+async function fetchDataset(
+  apiKey: string,
+  dataset: string,
+  node: string,
+  date: string,
+  timezone: string,
+): Promise<RequestResult<GridStatusLMPRow[]>> {
   // Determine interval type based on dataset name
   const interval = dataset.includes('_5_min') || dataset.includes('_15_min') || dataset.includes('settlement_point')
     ? 'sub-hourly' 
     : 'hourly';
 
-  // Build query URL
-  const timezone = getBATimezone(isoUpper);
-  const url = buildQueryURL(dataset, node, date, timezone);
+  const url = buildQueryURL(dataset, node, date, timezone, interval);
 
-  // Execute request through queue with timeout and retry
-  const result = await gridStatusQueue.request(
+  return gridStatusQueue.request(
     async () => {
       const response = await fetch(url, {
         headers: {
@@ -152,7 +210,7 @@ export async function fetchGridStatusPricing(
         throw error;
       }
       
-      return typedJson.data;
+      return typedJson.data.map(r => normalizeRow(r as unknown as Record<string, unknown>));
     },
     {
       timeout: 45000,      // 45 second timeout (Grid Status can be slow)
@@ -160,31 +218,16 @@ export async function fetchGridStatusPricing(
       retryDelay: 1000,    // Start with 1 second delay
     }
   );
-
-  // Handle request failure
-  if (!result.success) {
-    return result;
-  }
-
-  // Transform and aggregate data
-  const records = interval === 'hourly'
-    ? transformHourlyData(result.data, timezone, date)
-    : transformSubHourlyData(result.data, timezone, date);
-
-  return {
-    success: true,
-    data: records,
-  };
 }
 
 /**
  * Build Grid Status API query URL
  */
-function buildQueryURL(dataset: string, node: string, date: string, timezone: string): string {
+function buildQueryURL(dataset: string, node: string, date: string, timezone: string, interval: 'hourly' | 'sub-hourly' = 'hourly'): string {
   // Build UTC bounds from local day in BA timezone.
   const utcWindow = getUTCWindowForLocalDate(date, timezone, {
-    bufferBeforeHours: 12,
-    bufferAfterHours: 12,
+    bufferBeforeHours: 1,
+    bufferAfterHours: 1,
   });
 
   const params = new URLSearchParams({
@@ -192,8 +235,15 @@ function buildQueryURL(dataset: string, node: string, date: string, timezone: st
     end_time: utcWindow.endUTCISO,
     filter_column: 'location',
     filter_value: node,
-    limit: '200', // Enough for 24 hours × 4 intervals/hour = 96, with buffer
+    limit: '200',
   });
+
+  // For sub-hourly datasets (5-min, 15-min), ask the API to resample to hourly
+  if (interval === 'sub-hourly') {
+    params.set('resample_frequency', '1 hour');
+    params.set('resample_by', 'location');
+    params.set('resample_function', 'mean');
+  }
 
   return `${GRID_STATUS_BASE}/datasets/${dataset}/query?${params}`;
 }
@@ -243,9 +293,9 @@ function transformHourlyData(
       records.push({
         time: timeStr,
         lmp: Number(row.lmp.toFixed(2)),
-        energy: Number(row.energy.toFixed(2)),
-        congestion: Number(row.congestion.toFixed(2)),
-        loss: Number(row.loss.toFixed(2)),
+        energy: Number((row.energy ?? 0).toFixed(2)),
+        congestion: Number((row.congestion ?? 0).toFixed(2)),
+        loss: Number((row.loss ?? 0).toFixed(2)),
       });
     }
   }
@@ -300,9 +350,9 @@ function transformSubHourlyData(
       
       // Calculate averages
       const avgLMP = points.reduce((sum, p) => sum + p.lmp, 0) / count;
-      const avgEnergy = points.reduce((sum, p) => sum + p.energy, 0) / count;
-      const avgCongestion = points.reduce((sum, p) => sum + p.congestion, 0) / count;
-      const avgLoss = points.reduce((sum, p) => sum + p.loss, 0) / count;
+      const avgEnergy = points.reduce((sum, p) => sum + (p.energy ?? 0), 0) / count;
+      const avgCongestion = points.reduce((sum, p) => sum + (p.congestion ?? 0), 0) / count;
+      const avgLoss = points.reduce((sum, p) => sum + (p.loss ?? 0), 0) / count;
 
       const timeStr = `${date}T${String(hour).padStart(2, '0')}:00:00`;
       

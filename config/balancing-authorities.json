@@ -92,7 +92,7 @@
       "TH_NP15_GEN-APND",
       "TH_ZP26_GEN-APND"
     ],
-    "representativeZone": "SP15"
+    "representativeZone": "TH_SP15_GEN-APND"
   },
   "CPLE": {
     "code": "CPLE",
@@ -150,6 +150,7 @@
     "timezone": "America/Chicago",
     "hasPricing": true,
     "gridStatusDataset": "ercot_lmp_by_settlement_point",
+    "gridStatusSPPDataset": "ercot_spp_real_time_15_min",
     "zones": [
       "LZ_AEN",
       "LZ_CPS",

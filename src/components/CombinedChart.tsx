@@ -24,7 +24,7 @@ interface CombinedChartProps {
   zoneName?: string; // Zone name for Y-axis label
 }
 
-type DataKey = 'solar' | 'wind' | 'hydro' | 'geothermal' | 'biomass' | 'batteries' | 'imports' | 'other' | 'coal' | 'gas' | 'oil' | 'nuclear' | 'charging' | 'lmp' | 'energy' | 'congestion' | 'loss';
+type DataKey = 'solar' | 'wind' | 'hydro' | 'geothermal' | 'biomass' | 'batteries' | 'imports' | 'other' | 'coal' | 'gas' | 'oil' | 'nuclear' | 'charging' | 'lmp' | 'spp' | 'energy' | 'congestion' | 'loss';
 
 // Map data keys to CSS variable names
 const COLOR_VARS: Record<DataKey, string> = {
@@ -44,6 +44,7 @@ const COLOR_VARS: Record<DataKey, string> = {
   charging: 'var(--fuel-charging)',
   // Pricing
   lmp: 'var(--price-lmp)',
+  spp: 'var(--price-spp)',
   energy: 'var(--price-energy)',
   congestion: 'var(--price-congestion)',
   loss: 'var(--price-loss)',
@@ -57,7 +58,7 @@ interface LegendGroup {
 const LEGEND_GROUPS: LegendGroup[] = [
   {
     name: "Pricing",
-    items: ['lmp', 'energy', 'congestion', 'loss']
+    items: ['lmp', 'spp', 'energy', 'congestion', 'loss']
   },
   {
     name: "Renewables",
@@ -92,7 +93,7 @@ const CustomTooltip = ({
 
   // Sort to match LEGEND_GROUPS order
   const sortOrder: DataKey[] = [
-    'lmp', 'energy', 'congestion', 'loss',
+    'lmp', 'spp', 'energy', 'congestion', 'loss',
     'solar', 'wind', 'hydro', 'geothermal', 'biomass', 'batteries', 'imports', 'other',
     'coal', 'gas', 'oil', 'nuclear',
     'charging'
@@ -119,7 +120,7 @@ const CustomTooltip = ({
       </div>
       {sortedPayload.map((item, index) => {
         const dataKey = String(item.dataKey || '');
-        const isPricing = ["lmp", "energy", "congestion", "loss"].includes(dataKey.toLowerCase());
+        const isPricing = ["lmp", "spp", "energy", "congestion", "loss"].includes(dataKey.toLowerCase());
         const displayName = dataKey ? 
           (isPricing ? dataKey.toUpperCase() : 
            dataKey === 'charging' ? 'Charging' :
@@ -171,8 +172,9 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
     nuclear: true,
     // Charging
     charging: true,
-    // Pricing (4)
+    // Pricing (5)
     lmp: true,
+    spp: true,
     energy: true,
     congestion: true,
     loss: true,
@@ -197,8 +199,9 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
       nuclear: false,
       // Charging
       charging: false,
-      // Pricing (4)
+      // Pricing (5)
       lmp: false,
+      spp: false,
       energy: false,
       congestion: false,
       loss: false,
@@ -322,10 +325,11 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
       // Charging (accumulated negatives)
       charging: chargingTotal,
       // Pricing data - all components
-      lmp: priceData ? Number(priceData.lmp.toFixed(2)) : null,
-      energy: priceData ? Number(priceData.energy.toFixed(2)) : null,
-      congestion: priceData ? Number(priceData.congestion.toFixed(2)) : null,
-      loss: priceData ? Number(priceData.loss.toFixed(2)) : null,
+      lmp: priceData?.lmp != null ? Number(priceData.lmp.toFixed(2)) : null,
+      spp: priceData?.spp != null ? Number(priceData.spp.toFixed(2)) : null,
+      energy: priceData?.energy != null ? Number(priceData.energy.toFixed(2)) : null,
+      congestion: priceData?.congestion != null ? Number(priceData.congestion.toFixed(2)) : null,
+      loss: priceData?.loss != null ? Number(priceData.loss.toFixed(2)) : null,
     };
   });
 
@@ -340,7 +344,7 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
   // Create a Set of keys that have data for filtering tooltip
   const keysWithData = new Set<DataKey>(
     ['solar', 'wind', 'hydro', 'geothermal', 'biomass', 'batteries', 'imports', 'other', 
-     'coal', 'gas', 'oil', 'nuclear', 'charging', 'lmp', 'energy', 'congestion', 'loss']
+     'coal', 'gas', 'oil', 'nuclear', 'charging', 'lmp', 'spp', 'energy', 'congestion', 'loss']
       .filter(key => hasDataForKey(key as DataKey)) as DataKey[]
   );
 
@@ -570,6 +574,17 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
           <Line
             yAxisId="price"
             type="monotone"
+            dataKey="spp"
+            stroke="var(--price-spp)"
+            strokeWidth={2}
+            dot={{ fill: "var(--price-spp)", r: 3 }}
+            name="SPP"
+            connectNulls
+            hide={!hasPricingData || !visibility.spp}
+          />
+          <Line
+            yAxisId="price"
+            type="monotone"
             dataKey="energy"
             stroke="var(--price-energy)"
             strokeWidth={2}
@@ -695,7 +710,7 @@ export default function CombinedChart({ fuelMixData, pricingData, balancingAutho
                 {itemsWithData.map((item) => {
                   const isVisible = visibility[item];
                   const color = COLOR_VARS[item];
-                  const label = item === 'lmp' ? 'Total (LMP)' : item.charAt(0).toUpperCase() + item.slice(1);
+                  const label = item === 'lmp' ? 'Total (LMP)' : item === 'spp' ? 'Total (SPP)' : item.charAt(0).toUpperCase() + item.slice(1);
                   
                   return (
                     <button
