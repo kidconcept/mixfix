@@ -176,8 +176,8 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
       onClick={onClose}
     >
       <div
-        className="relative rounded-lg shadow-2xl overflow-hidden"
-        style={{ backgroundColor: 'var(--bg-primary)', width: '80vw', maxHeight: '90vh' }}
+        className="relative rounded-lg shadow-2xl"
+        style={{ backgroundColor: 'var(--bg-primary)', width: '80vw', maxHeight: '90vh', overflow: 'visible' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -191,12 +191,12 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
         </button>
 
         {/* Modal Content */}
-        <div style={{ height: '90vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ height: '90vh', display: 'flex', flexDirection: 'column', borderRadius: 'inherit' }}>
 
           {/* Grid and Zone selectors */}
           <div
             className="flex flex-wrap items-end gap-4 px-4 py-3 shrink-0"
-            style={{ borderBottom: '1px solid var(--border-subtle)' }}
+            style={{ borderBottom: '1px solid var(--border-subtle)', position: 'relative', zIndex: 1000 }}
           >
             {/* BA Field */}
             <div className="flex flex-col form-field-block">
@@ -212,15 +212,14 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
                     <input
                       ref={baInputRef}
                       type="text"
-                      value={baSearchTerm || balancingAuthority}
-                      size={Math.max((baSearchTerm || balancingAuthority || 'Select BA').length, 1)}
+                      value={baSearchTerm || baConfig?.name || balancingAuthority}
+                      style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)', minWidth: '10ch', fieldSizing: 'content' } as React.CSSProperties}
                       onChange={(e) => { setBaSearchTerm(e.target.value); setShowBADropdown(true); }}
                       onFocus={(e) => { setBaFocused(true); setShowBADropdown(true); e.target.select(); }}
                       onBlur={() => { setBaFocused(false); setTimeout(() => setShowBADropdown(false), 200); }}
                       onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                       placeholder="Select BA"
                       className="font-medium focus:outline-none bg-transparent"
-                      style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)' }}
                     />
                     <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-base)' }}>▾</span>
                   </div>
@@ -228,7 +227,7 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
                 {showBADropdown && (
                   <div
                     ref={baDropdownRef}
-                    className="absolute z-10 mt-1 rounded-lg shadow-lg overflow-y-auto"
+                    className="absolute z-[1000] mt-1 rounded-lg shadow-lg overflow-y-auto"
                     style={{ backgroundColor: 'var(--bg-primary)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--active)', minWidth: 'var(--dropdown-min-width)', maxHeight: '240px' }}
                   >
                     {allBAs
@@ -258,8 +257,9 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
             </div>
 
             {/* Zone Field */}
+            {supportsPricing && (
             <div className="flex flex-col form-field-block">
-              <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)', opacity: supportsPricing ? 1 : 0.5 }}>Zone</label>
+              <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Zone</label>
               <div className="relative">
                 <div className="flex items-center gap-0">
                   <div
@@ -271,8 +271,8 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
                     <input
                       ref={zoneInputRef}
                       type="text"
-                      value={zoneSearchTerm || zone}
-                      size={Math.max((zoneSearchTerm || zone || (supportsPricing ? 'Select Zone' : 'N/A')).length, 1)}
+                      value={zoneSearchTerm || (zone ? (getZonesWithNames(balancingAuthority).find(z => z.code === zone)?.name || zone) : '')}
+                      style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)', minWidth: '10ch', fieldSizing: 'content' } as React.CSSProperties}
                       onChange={(e) => { setZoneSearchTerm(e.target.value); setShowZoneDropdown(true); }}
                       onFocus={(e) => { setZoneFocused(true); if (supportsPricing) setShowZoneDropdown(true); e.target.select(); }}
                       onBlur={() => { setZoneFocused(false); setTimeout(() => setShowZoneDropdown(false), 200); }}
@@ -280,7 +280,6 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
                       placeholder={supportsPricing ? 'Select Zone' : 'N/A'}
                       disabled={!supportsPricing}
                       className="font-medium focus:outline-none bg-transparent disabled:cursor-not-allowed"
-                      style={{ color: 'var(--text-primary)', height: 'var(--input-height)', fontSize: 'var(--font-form-base)' }}
                     />
                     <span className="ml-1 select-none" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-base)' }}>▾</span>
                   </div>
@@ -288,7 +287,7 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
                 {showZoneDropdown && supportsPricing && (
                   <div
                     ref={zoneDropdownRef}
-                    className="absolute z-10 mt-1 rounded-lg shadow-lg overflow-y-auto"
+                    className="absolute z-[1000] mt-1 rounded-lg shadow-lg overflow-y-auto"
                     style={{ backgroundColor: 'var(--bg-primary)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'var(--active)', minWidth: 'var(--dropdown-min-width)', maxHeight: '240px' }}
                   >
                     {getZonesWithNames(balancingAuthority)
@@ -311,6 +310,7 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
                 )}
               </div>
             </div>
+            )}
 
             {/* Inline description */}
             {balancingAuthority && (
