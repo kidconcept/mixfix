@@ -15,33 +15,77 @@ interface FetchResult {
   error?: string;
 }
 
-// Representative nodes across different ISOs
+// All configured zones from config/balancing-authorities.json + mismatched representative zones
 const TEST_NODES = [
-  // NYISO - New York
+  // NYISO — 11 zones
   { iso: "NYISO", node: "CAPITL", name: "Capital Region" },
-  { iso: "NYISO", node: "N.Y.C.", name: "New York City" },
+  { iso: "NYISO", node: "CENTRL", name: "Central" },
+  { iso: "NYISO", node: "DUNWOD", name: "Dunwoodie" },
+  { iso: "NYISO", node: "GENESE", name: "Genesee" },
+  { iso: "NYISO", node: "HUD VL", name: "Hudson Valley" },
   { iso: "NYISO", node: "LONGIL", name: "Long Island" },
-  
-  // ISONE - New England
-  { iso: "ISONE", node: ".H.INTERNAL_HUB", name: "Internal Hub" },
-  { iso: "ISONE", node: ".Z.CONNECTICUT", name: "Connecticut" },
-  
-  // PJM - Mid-Atlantic
-  { iso: "PJM", node: "PJM", name: "PJM Hub" },
-  
-  // CAISO - California
+  { iso: "NYISO", node: "MHK VL", name: "Mohawk Valley" },
+  { iso: "NYISO", node: "MILLWD", name: "Millwood" },
+  { iso: "NYISO", node: "N.Y.C.", name: "New York City" },
+  { iso: "NYISO", node: "NORTH", name: "North" },
+  { iso: "NYISO", node: "WEST", name: "West" },
+
+  // CAISO — 3 zones
   { iso: "CAISO", node: "TH_SP15_GEN-APND", name: "SP15 Hub" },
   { iso: "CAISO", node: "TH_NP15_GEN-APND", name: "NP15 Hub" },
-  
-  // ERCOT - Texas
-  { iso: "ERCOT", node: "HB_HOUSTON", name: "Houston Hub" },
-  { iso: "ERCOT", node: "HB_NORTH", name: "North Hub" },
-  
-  // MISO - Midwest
-  { iso: "MISO", node: "MISO", name: "MISO Hub" },
-  
-  // SPP - Great Plains
+  { iso: "CAISO", node: "TH_ZP26_GEN-APND", name: "ZP26 Hub" },
+
+  // ERCOT — 8 zones + 1 mismatched representative
+  { iso: "ERCOT", node: "LZ_HOUSTON", name: "Houston Load Zone" },
+  { iso: "ERCOT", node: "LZ_NORTH", name: "North Load Zone" },
+  { iso: "ERCOT", node: "LZ_SOUTH", name: "South Load Zone" },
+  { iso: "ERCOT", node: "LZ_WEST", name: "West Load Zone" },
+  { iso: "ERCOT", node: "LZ_AEN", name: "AEN Load Zone" },
+  { iso: "ERCOT", node: "LZ_CPS", name: "CPS Energy Load Zone" },
+  { iso: "ERCOT", node: "LZ_LCRA", name: "LCRA Load Zone" },
+  { iso: "ERCOT", node: "LZ_RAYBN", name: "Rayburn Load Zone" },
+  { iso: "ERCOT", node: "HB_HOUSTON", name: "⚠️ Houston Hub (rep)" },
+
+  // ISONE — 8 zones
+  { iso: "ISONE", node: ".Z.MAINE", name: "Maine" },
+  { iso: "ISONE", node: ".Z.NEWHAMPSHIRE", name: "New Hampshire" },
+  { iso: "ISONE", node: ".Z.VERMONT", name: "Vermont" },
+  { iso: "ISONE", node: ".Z.CONNECTICUT", name: "Connecticut" },
+  { iso: "ISONE", node: ".Z.RHODEISLAND", name: "Rhode Island" },
+  { iso: "ISONE", node: ".Z.SEMASS", name: "SE Massachusetts" },
+  { iso: "ISONE", node: ".Z.WCMASS", name: "W/C Massachusetts" },
+  { iso: "ISONE", node: ".Z.NEMASSBOST", name: "NE Mass/Boston" },
+
+  // MISO — 8 zones
+  { iso: "MISO", node: "ILLINOIS.HUB", name: "Illinois Hub" },
+  { iso: "MISO", node: "INDIANA.HUB", name: "Indiana Hub" },
+  { iso: "MISO", node: "MICHIGAN.HUB", name: "Michigan Hub" },
+  { iso: "MISO", node: "MINN.HUB", name: "Minnesota Hub" },
+  { iso: "MISO", node: "ARKANSAS.HUB", name: "Arkansas Hub" },
+  { iso: "MISO", node: "LOUISIANA.HUB", name: "Louisiana Hub" },
+  { iso: "MISO", node: "TEXAS.HUB", name: "Texas Hub" },
+  { iso: "MISO", node: "MS.HUB", name: "Mississippi Hub" },
+
+  // PJM — 15 zones
+  { iso: "PJM", node: "AEP", name: "American Electric Power" },
+  { iso: "PJM", node: "APS", name: "Appalachian Power" },
+  { iso: "PJM", node: "ATSI", name: "American Trans Systems" },
+  { iso: "PJM", node: "BGE", name: "Baltimore Gas & Electric" },
+  { iso: "PJM", node: "COMED", name: "Commonwealth Edison" },
+  { iso: "PJM", node: "DAY", name: "Dayton Power & Light" },
+  { iso: "PJM", node: "DEOK", name: "Duke Energy OH/KY" },
+  { iso: "PJM", node: "DOM", name: "Dominion" },
+  { iso: "PJM", node: "DPL", name: "Delmarva Power & Light" },
+  { iso: "PJM", node: "DUQ", name: "Duquesne Light" },
+  { iso: "PJM", node: "JCPL", name: "Jersey Central P&L" },
+  { iso: "PJM", node: "PECO", name: "PECO Energy" },
+  { iso: "PJM", node: "PEPCO", name: "Potomac Electric Power" },
+  { iso: "PJM", node: "PPL", name: "PPL Electric Utilities" },
+  { iso: "PJM", node: "PSEG", name: "Public Service E&G" },
+
+  // SPP — 2 zones
   { iso: "SPP", node: "SPPNORTH_HUB", name: "SPP North Hub" },
+  { iso: "SPP", node: "SPPSOUTH_HUB", name: "SPP South Hub" },
 ];
 
 async function testPricingFetch(

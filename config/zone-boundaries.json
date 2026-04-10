@@ -168,39 +168,44 @@
   "MISO": {
     "zones": [
       {
-        "zone": "MISO.ILLINOIS.HUB",
+        "zone": "ILLINOIS.HUB",
         "name": "Illinois Hub",
         "bounds": { "minLat": 37.00, "maxLat": 42.50, "minLon": -91.50, "maxLon": -87.50 }
       },
       {
-        "zone": "MISO.INDIANA.HUB",
+        "zone": "INDIANA.HUB",
         "name": "Indiana Hub",
         "bounds": { "minLat": 37.80, "maxLat": 41.80, "minLon": -88.10, "maxLon": -84.80 }
       },
       {
-        "zone": "MISO.MICHIGAN.HUB",
+        "zone": "MICHIGAN.HUB",
         "name": "Michigan Hub",
         "bounds": { "minLat": 41.70, "maxLat": 48.30, "minLon": -90.50, "maxLon": -82.40 }
       },
       {
-        "zone": "MISO.MINNESOTA.HUB",
+        "zone": "MINN.HUB",
         "name": "Minnesota Hub",
         "bounds": { "minLat": 43.50, "maxLat": 49.40, "minLon": -97.30, "maxLon": -89.50 }
       },
       {
-        "zone": "MISO.ARKANSAS.HUB",
+        "zone": "ARKANSAS.HUB",
         "name": "Arkansas Hub",
         "bounds": { "minLat": 33.00, "maxLat": 36.50, "minLon": -94.60, "maxLon": -89.60 }
       },
       {
-        "zone": "MISO.LOUISIANA.HUB",
+        "zone": "LOUISIANA.HUB",
         "name": "Louisiana Hub",
         "bounds": { "minLat": 29.00, "maxLat": 33.00, "minLon": -94.00, "maxLon": -88.80 }
       },
       {
-        "zone": "MISO.TEXAS.HUB",
+        "zone": "TEXAS.HUB",
         "name": "Texas Hub (MISO portion)",
         "bounds": { "minLat": 32.50, "maxLat": 36.50, "minLon": -106.60, "maxLon": -93.50 }
+      },
+      {
+        "zone": "MS.HUB",
+        "name": "Mississippi Hub",
+        "bounds": { "minLat": 30.20, "maxLat": 35.00, "minLon": -91.60, "maxLon": -88.10 }
       }
     ]
   },
@@ -286,19 +291,14 @@
   "SPP": {
     "zones": [
       {
-        "zone": "SWPP_SPS_NRTH_HUB",
-        "name": "SPS North Hub",
-        "bounds": { "minLat": 34.00, "maxLat": 37.00, "minLon": -103.00, "maxLon": -100.00 }
+        "zone": "SPPNORTH_HUB",
+        "name": "SPP North Hub",
+        "bounds": { "minLat": 36.00, "maxLat": 43.00, "minLon": -104.00, "maxLon": -94.40 }
       },
       {
-        "zone": "SWPP_OKGE_HUB",
-        "name": "OG&E Hub",
-        "bounds": { "minLat": 33.60, "maxLat": 37.00, "minLon": -100.00, "maxLon": -94.40 }
-      },
-      {
-        "zone": "SWPP_WR_HUB",
-        "name": "Westar Hub",
-        "bounds": { "minLat": 37.00, "maxLat": 40.00, "minLon": -102.00, "maxLon": -94.60 }
+        "zone": "SPPSOUTH_HUB",
+        "name": "SPP South Hub",
+        "bounds": { "minLat": 33.00, "maxLat": 36.00, "minLon": -103.00, "maxLon": -94.40 }
       }
     ]
   }

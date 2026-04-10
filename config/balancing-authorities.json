@@ -326,17 +326,18 @@
     "type": "ISO",
     "timezone": "America/Chicago",
     "hasPricing": true,
-    "gridStatusDataset": "miso_lmp_real_time_hourly_final",
+    "gridStatusDataset": "miso_lmp_real_time_hourly_prelim",
     "zones": [
-      "MISO.ILLINOIS.HUB",
-      "MISO.INDIANA.HUB",
-      "MISO.MICHIGAN.HUB",
-      "MISO.MINNESOTA.HUB",
-      "MISO.ARKANSAS.HUB",
-      "MISO.LOUISIANA.HUB",
-      "MISO.TEXAS.HUB"
+      "ILLINOIS.HUB",
+      "INDIANA.HUB",
+      "MICHIGAN.HUB",
+      "MINN.HUB",
+      "ARKANSAS.HUB",
+      "LOUISIANA.HUB",
+      "TEXAS.HUB",
+      "MS.HUB"
     ],
-    "representativeZone": "MISO.ILLINOIS"
+    "representativeZone": "ILLINOIS.HUB"
   },
   "NE": {
     "code": "NE",
@@ -573,11 +574,10 @@
     "hasPricing": true,
     "gridStatusDataset": "spp_lmp_real_time_5_min",
     "zones": [
-      "SWPP_OKGE_HUB",
-      "SWPP_SPS_NRTH_HUB",
-      "SWPP_WR_HUB"
+      "SPPNORTH_HUB",
+      "SPPSOUTH_HUB"
     ],
-    "representativeZone": "SPP.SPPSYSTEM"
+    "representativeZone": "SPPNORTH_HUB"
   },
   "TAL": {
     "code": "TAL",
