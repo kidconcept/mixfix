@@ -200,7 +200,7 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
           >
             {/* BA Field */}
             <div className="flex flex-col form-field-block">
-              <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Grid</label>
+              <label className="font-semibold pr-2" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-xs)' }}>Balancing Authority</label>
               <div className="relative">
                 <div className="flex items-center gap-0">
                   <div
