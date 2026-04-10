@@ -180,30 +180,22 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
         style={{ backgroundColor: 'var(--bg-primary)', width: '80vw', maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal Header */}
-        <div
-          className="flex items-center justify-between px-4 py-3 border-b"
-          style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-subtle)' }}
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-3 z-10 text-2xl leading-none hover:opacity-70 transition-opacity"
+          style={{ color: 'var(--text-primary)' }}
+          aria-label="Close modal"
         >
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Grid Map{balancingAuthority ? `: ${baConfig?.name || balancingAuthority}` : ''}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-2xl leading-none hover:opacity-70 transition-opacity"
-            style={{ color: 'var(--text-primary)' }}
-            aria-label="Close modal"
-          >
-            ×
-          </button>
-        </div>
+          ×
+        </button>
 
         {/* Modal Content */}
-        <div style={{ height: 'calc(90vh - 60px)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ height: '90vh', display: 'flex', flexDirection: 'column' }}>
 
           {/* Grid and Zone selectors */}
           <div
-            className="flex flex-wrap gap-4 px-4 py-3 shrink-0"
+            className="flex flex-wrap items-end gap-4 px-4 py-3 shrink-0"
             style={{ borderBottom: '1px solid var(--border-subtle)' }}
           >
             {/* BA Field */}
@@ -319,25 +311,19 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
                 )}
               </div>
             </div>
+
+            {/* Inline description */}
+            {balancingAuthority && (
+              <div className="shrink-0 pb-1" style={{ color: 'var(--text-secondary)', fontSize: 'var(--font-form-base)' }}>
+                Fuel mix in the {baConfig?.name || balancingAuthority} BA{supportsPricing && zone ? `, Pricing in ${getZonesWithNames(balancingAuthority).find(z => z.code === zone)?.name || zone} Zone` : ''}.
+              </div>
+            )}
           </div>
 
-          {/* Info header + Map */}
+          {/* Info + Map */}
           <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
-            <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)', width: '100%', height: '100%' }}>
-              <div
-                className="px-4 py-3"
-                style={{ borderBottom: '1px solid var(--border-lighter)', color: 'var(--text-secondary)' }}
-              >
-                <div className="text-base font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
-                  {baConfig?.name || balancingAuthority || 'Select a Grid'}
-                </div>
-                <div className="text-sm leading-relaxed">
-                  A Balancing Authority (BA) is a regional grid operator responsible for maintaining electricity supply and demand balance in real-time.
-                  The energy mix shown represents generation sources across this entire control area.
-                </div>
-              </div>
-
-              <div className="w-full relative" style={{ height: 'calc(100% - 88px)' }}>
+            <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)', width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <div className="w-full relative" style={{ flex: 1, minHeight: 0 }}>
                 <MapContainer
                   center={DEFAULT_CENTER}
                   zoom={DEFAULT_ZOOM}
@@ -412,6 +398,14 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
                     {error}
                   </div>
                 )}
+              </div>
+              <div
+                className="px-4 py-2 shrink-0"
+                style={{ borderTop: '1px solid var(--border-lighter)', color: 'var(--text-secondary)' }}
+              >
+                <div className="text-xs leading-relaxed">
+                  The U.S. electric grid is divided into Balancing Authorities (BAs) — regional operators responsible for matching electricity generation to demand in real time. Each BA controls a geographic area shown on this map. Note that these boundaries represent operational control areas and may not align exactly with the reporting regions in the EIA dataset, which can aggregate data differently. Pricing zones are sub-regions within a BA where locational marginal prices (LMP) reflect the real-time cost of delivering power — these zones are not shown on the map as their boundaries are defined by electrical topology rather than geography. Boundaries from the DHS Control Areas dataset (ArcGIS). Fuel mix from the EIA Hourly Grid Monitor and Grid Status API. Pricing from ISO real-time LMP feeds via Grid Status.
+                </div>
               </div>
             </div>
           </div>

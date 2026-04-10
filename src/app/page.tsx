@@ -545,6 +545,8 @@ export default function Home() {
             <button
               type="button"
               onClick={() => setShowMapPanel((prev) => !prev)}
+              onMouseEnter={(e) => { if (!showMapPanel) e.currentTarget.style.backgroundColor = 'var(--bg-secondary)'; }}
+              onMouseLeave={(e) => { if (!showMapPanel) e.currentTarget.style.backgroundColor = 'var(--bg-primary)'; }}
               className="px-3 py-1.5 font-medium rounded-lg transition-colors"
               style={{
                 backgroundColor: showMapPanel ? "var(--active)" : "var(--bg-primary)",
