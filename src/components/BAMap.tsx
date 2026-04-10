@@ -87,8 +87,9 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
         const hasCache = Object.keys(allFeatures).length > 50;
         if (!hasCache) {
           try {
-            const geometries = await fetchAllBAGeometries();
-            if (isMounted) setAllFeatures(geometries);
+            await fetchAllBAGeometries((partial) => {
+              if (isMounted) setAllFeatures(prev => ({ ...prev, ...partial }));
+            });
           } catch (err) {
             console.error("Failed to preload BA geometries:", err);
           }
@@ -103,11 +104,15 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
       window.addEventListener('load', handleLoad);
       return () => {
         isMounted = false;
+        hasLoadedAll.current = false;
         window.removeEventListener('load', handleLoad);
       };
     }
 
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+      hasLoadedAll.current = false;
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load geometry for the currently selected BA

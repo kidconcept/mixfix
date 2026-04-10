@@ -132,7 +132,9 @@ export async function fetchBAGeometryFeature(baCode: string): Promise<BAGeometry
   return feature;
 }
 
-export async function fetchAllBAGeometries(): Promise<Record<string, BAGeometryFeature>> {
+export async function fetchAllBAGeometries(
+  onProgress?: (results: Record<string, BAGeometryFeature>) => void
+): Promise<Record<string, BAGeometryFeature>> {
   const mappableBAs = getMappableBAGeometryMappings();
   const results: Record<string, BAGeometryFeature> = {};
   
@@ -142,6 +144,7 @@ export async function fetchAllBAGeometries(): Promise<Record<string, BAGeometryF
         const feature = await fetchBAGeometryFeature(mapping.baCode);
         if (feature) {
           results[mapping.baCode] = feature;
+          if (onProgress) onProgress({ ...results });
         }
       } catch (error) {
         console.warn(`Failed to load geometry for ${mapping.baCode}:`, error);
