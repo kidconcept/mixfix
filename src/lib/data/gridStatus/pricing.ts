@@ -20,7 +20,6 @@ import {
   getBATimezone,
   getGridStatusDataset, 
   getGridStatusSPPDataset,
-  getRepresentativeZone,
 } from "../../config/balancing-authorities";
 
 const GRID_STATUS_BASE = "https://api.gridstatus.io/v1";
@@ -65,14 +64,6 @@ interface GridStatusLMPResponse {
  */
 export function isPricingSupported(iso: string): boolean {
   return hasPricingData(iso);
-}
-
-/**
- * Get default pricing zone for an ISO
- * This is a helper for UI to display zone options
- */
-export function getDefaultPricingNode(iso: string): string {
-  return getRepresentativeZone(iso) || "HUB";
 }
 
 /**
@@ -296,72 +287,6 @@ function transformHourlyData(
         energy: Number((row.energy ?? 0).toFixed(2)),
         congestion: Number((row.congestion ?? 0).toFixed(2)),
         loss: Number((row.loss ?? 0).toFixed(2)),
-      });
-    }
-  }
-
-  return records;
-}
-
-/**
- * Transform sub-hourly LMP data (5-min or 15-min) by aggregating to hourly averages
- */
-function transformSubHourlyData(
-  rows: GridStatusLMPRow[],
-  timezone: string,
-  date: string
-): LMPDataPoint[] {
-  const hourlyMap = new Map<number, GridStatusLMPRow[]>();
-  
-  // Calculate next day for hour 24 (simple string arithmetic to avoid timezone issues)
-  const [year, month, day] = date.split('-').map(Number);
-  const nextDate = new Date(year, month - 1, day + 1);
-  const nextDayStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
-
-  // Group by local hour
-  for (const row of rows) {
-    const localDate = convertUTCToLocalDate(row.interval_start_utc, timezone);
-    const localHour = convertUTCToLocalHour(row.interval_start_utc, timezone);
-    
-    // Include data for requested date OR hour 0 of next day (mapped to hour 24)
-    if (localDate === date) {
-      if (!hourlyMap.has(localHour)) {
-        hourlyMap.set(localHour, []);
-      }
-      hourlyMap.get(localHour)!.push(row);
-    } else if (localDate === nextDayStr && localHour === 0) {
-      // Map next day's hour 0 to hour 24
-      if (!hourlyMap.has(24)) {
-        hourlyMap.set(24, []);
-      }
-      hourlyMap.get(24)!.push(row);
-    }
-  }
-
-  // Average each hour's data points
-  const records: LMPDataPoint[] = [];
-  
-  // Include hours 0-24 (where 24 is next day's hour 0)
-  for (let hour = 0; hour <= 24; hour++) {
-    const points = hourlyMap.get(hour);
-    
-    if (points && points.length > 0) {
-      const count = points.length;
-      
-      // Calculate averages
-      const avgLMP = points.reduce((sum, p) => sum + p.lmp, 0) / count;
-      const avgEnergy = points.reduce((sum, p) => sum + (p.energy ?? 0), 0) / count;
-      const avgCongestion = points.reduce((sum, p) => sum + (p.congestion ?? 0), 0) / count;
-      const avgLoss = points.reduce((sum, p) => sum + (p.loss ?? 0), 0) / count;
-
-      const timeStr = `${date}T${String(hour).padStart(2, '0')}:00:00`;
-      
-      records.push({
-        time: timeStr,
-        lmp: Number(avgLMP.toFixed(2)),
-        energy: Number(avgEnergy.toFixed(2)),
-        congestion: Number(avgCongestion.toFixed(2)),
-        loss: Number(avgLoss.toFixed(2)),
       });
     }
   }

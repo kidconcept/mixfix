@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 import { useState, useEffect, useRef } from "react";
 import useSWR, { SWRConfig } from "swr";
 import { swrConfig } from "@/lib/swrConfig";
-import { hasPricingData, getBAConfig, getZoneName } from "@/lib/config/balancing-authorities";
+import { hasPricingData, getBAConfig } from "@/lib/config/balancing-authorities";
 import type { Granularity } from "@/types/energy";
 
 const BAMap = dynamic(() => import("@/components/BAMap"), { ssr: false });

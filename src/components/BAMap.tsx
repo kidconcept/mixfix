@@ -183,7 +183,7 @@ export default function BAMap({ isOpen, onClose, balancingAuthority, zone, onBal
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-2 right-3 z-10 text-2xl leading-none hover:opacity-70 transition-opacity"
+          className="absolute top-2 right-3 z-[1001] text-2xl leading-none hover:opacity-70 transition-opacity"
           style={{ color: 'var(--text-primary)' }}
           aria-label="Close modal"
         >

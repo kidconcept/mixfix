@@ -163,14 +163,6 @@ input[type="date"] {
   }
 }
 
-@keyframes pulse-dash {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
-}
-.pulse-dash {
-  animation: pulse-dash 1s infinite;
-}
-
 /* Portrait-only footer branding (hidden by default) */
 .portrait-footer-brand {
   display: none;

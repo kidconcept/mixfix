@@ -9,7 +9,6 @@
 
 import baConfig from '../../../config/balancing-authorities.json';
 import zoneBoundaries from '../../../config/zone-boundaries.json';
-import { BATimezoneInfo } from "@/types/energy";
 
 export interface BAConfig {
   code: string;
@@ -58,13 +57,6 @@ export function getAllBAs(): BAConfig[] {
 }
 
 /**
- * Get BAs with pricing support (ISOs)
- */
-export function getBAsWithPricing(): BAConfig[] {
-  return Object.values(config).filter(ba => ba.hasPricing);
-}
-
-/**
  * Get BA config by code (supports both common and EIA codes)
  */
 export function getBAConfig(code: string): BAConfig | undefined {
@@ -94,14 +86,6 @@ export function hasPricingData(code: string): boolean {
 }
 
 /**
- * Get zones for a BA (only ISOs have zones)
- */
-export function getZones(code: string): string[] {
-  const ba = getBAConfig(code);
-  return ba?.zones ?? [];
-}
-
-/**
  * Get representative zone for a BA (for default selection)
  */
 export function getRepresentativeZone(code: string): string | undefined {
@@ -123,20 +107,6 @@ export function getGridStatusDataset(code: string): string | undefined {
 export function getGridStatusSPPDataset(code: string): string | undefined {
   const ba = getBAConfig(code);
   return ba?.gridStatusSPPDataset;
-}
-
-/**
- * Get all BA codes (for dropdown menus, etc.)
- */
-export function getAllBACodes(): string[] {
-  return Object.keys(config);
-}
-
-/**
- * Get ISOs only
- */
-export function getISOs(): BAConfig[] {
-  return Object.values(config).filter(ba => ba.type === 'ISO');
 }
 
 /**
@@ -208,19 +178,4 @@ export function getEIATimezone(code: string): string {
   return IANA_TO_EIA_TIMEZONE[iana] ?? "Eastern";
 }
 
-export function getBATimezoneInfo(code: string, date: Date = new Date()): BATimezoneInfo {
-  const iana = getBATimezone(code);
 
-  const shortName = new Intl.DateTimeFormat("en-US", {
-    timeZone: iana,
-    timeZoneName: "short",
-  })
-    .formatToParts(date)
-    .find((part) => part.type === "timeZoneName")?.value || iana;
-
-  return {
-    iana,
-    shortName,
-    label: `${iana} (${shortName})`,
-  };
-}

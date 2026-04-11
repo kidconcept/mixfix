@@ -158,6 +158,3 @@ export async function fetchAllBAGeometries(
   
   return results;
 }
-
-// Re-export sortBAFeaturesByArea for use in components
-export { sortBAFeaturesByArea };

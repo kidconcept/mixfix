@@ -18,20 +18,6 @@ export type EnergySource =
   | "oil"
   | "nuclear";
 
-export interface GenerationDataPoint {
-  source: EnergySource;
-  value: number; // GW
-  percentage: number;
-  color: string;
-}
-
-export interface RegionSnapshot {
-  region: string;
-  timestamp: string;
-  totalGW: number;
-  mix: GenerationDataPoint[];
-}
-
 export interface HistoricalRecord {
   date: string; // ISO 8601 format
   [key: string]: number | string; // Allows for dynamic source keys
@@ -44,12 +30,6 @@ export interface LMPDataPoint {
   congestion: number; // $/MWh
   loss: number; // $/MWh
   spp?: number; // $/MWh — ERCOT Settlement Point Price
-}
-
-export interface BATimezoneInfo {
-  iana: string;
-  shortName: string;
-  label: string;
 }
 
 export interface BAGeometryMapping {
