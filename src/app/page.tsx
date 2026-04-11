@@ -205,7 +205,7 @@ export default function Home() {
         async (position) => {
           const { latitude, longitude } = position.coords;
           try {
-            // Use Nominatim reverse geocoding to get address
+            // Use Nominatim reverse geocoding for display name only
             const response = await fetch(
               `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
             );
@@ -213,34 +213,32 @@ export default function Home() {
             
             // Create a readable address from the result
             const city = data.address.city || data.address.town || data.address.village || "";
-            
-            const autoAddress = city;
+            const state = data.address.state || "";
+            const autoAddress = [city, state].filter(Boolean).join(", ");
             if (autoAddress) {
               setAddress(autoAddress);
-              
-              // Also call our geocode API to get ISO and node
-              try {
-                const geocodeResponse = await fetch(
-                  `/api/geocode?address=${encodeURIComponent(autoAddress)}`
-                );
-                const geocodeData = await geocodeResponse.json();
-                
-                if (geocodeData.iso) {
-                  setBalancingAuthority(geocodeData.iso);
-                  // Update zone from geocode result
-                  if (geocodeData.suggestedNode) {
-                    setZone(geocodeData.suggestedNode);
-                  } else if (geocodeData.zone) {
-                    setZone(geocodeData.zone);
-                  }
-
-                }
-              } catch (error) {
-                console.error("Error auto-populating ISO/Node:", error);
-              }
             }
           } catch (error) {
             console.error("Error getting location address:", error);
+          }
+
+          // Call our geocode API with real coordinates for accurate BA resolution
+          try {
+            const geocodeResponse = await fetch(
+              `/api/geocode?lat=${latitude}&lon=${longitude}`
+            );
+            const geocodeData = await geocodeResponse.json();
+            
+            if (geocodeData.iso) {
+              setBalancingAuthority(geocodeData.iso);
+              if (geocodeData.suggestedNode) {
+                setZone(geocodeData.suggestedNode);
+              } else if (geocodeData.zone) {
+                setZone(geocodeData.zone);
+              }
+            }
+          } catch (error) {
+            console.error("Error auto-populating ISO/Node:", error);
           }
         },
         (error) => {

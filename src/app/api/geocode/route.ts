@@ -253,45 +253,66 @@ function getZoneForBA(baCode: string, lat: number, lon: number): string {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const address = searchParams.get("address");
+  const latParam = searchParams.get("lat");
+  const lonParam = searchParams.get("lon");
 
-  if (!address) {
+  // Direct coordinate path: skip Nominatim forward-geocode entirely
+  const hasCoords = latParam != null && lonParam != null;
+
+  if (!address && !hasCoords) {
     return NextResponse.json({
       iso: null,
       zone: null,
-      message: "No address provided",
+      message: "No address or coordinates provided",
     });
   }
 
   try {
-    // Use OpenStreetMap Nominatim for free geocoding
-    const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-      address
-    )}&format=json&limit=1&addressdetails=1&countrycodes=us`;
+    let lat: number;
+    let lon: number;
+    let displayName: string | undefined;
 
-    const response = await fetch(geocodeUrl, {
-      headers: {
-        "User-Agent": "MixFix-Energy-App",
-      },
-    });
+    if (hasCoords) {
+      lat = parseFloat(latParam);
+      lon = parseFloat(lonParam);
+      if (Number.isNaN(lat) || Number.isNaN(lon)) {
+        return NextResponse.json(
+          { error: "Invalid lat/lon values" },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Use OpenStreetMap Nominatim for free geocoding
+      const geocodeUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+        address!
+      )}&format=json&limit=1&addressdetails=1&countrycodes=us`;
 
-    if (!response.ok) {
-      throw new Error(
-        `Geocoding API error: ${response.status} ${response.statusText}`
-      );
+      const response = await fetch(geocodeUrl, {
+        headers: {
+          "User-Agent": "MixFix-Energy-App",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Geocoding API error: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const results = await response.json();
+
+      if (!results || results.length === 0) {
+        return NextResponse.json(
+          { error: "Address not found" },
+          { status: 404 }
+        );
+      }
+
+      const location = results[0];
+      lat = parseFloat(location.lat);
+      lon = parseFloat(location.lon);
+      displayName = location.display_name;
     }
-
-    const results = await response.json();
-
-    if (!results || results.length === 0) {
-      return NextResponse.json(
-        { error: "Address not found" },
-        { status: 404 }
-      );
-    }
-
-    const location = results[0];
-    const lat = parseFloat(location.lat);
-    const lon = parseFloat(location.lon);
 
     let detectedBA: string | null = null;
     try {
@@ -305,8 +326,7 @@ export async function GET(request: Request) {
       return NextResponse.json({
         lat,
         lon,
-        display_name: location.display_name,
-        address: location.address,
+        display_name: displayName,
         iso: detectedBA,
         zone: getZoneForBA(detectedBA, lat, lon),
       });
@@ -319,8 +339,7 @@ export async function GET(request: Request) {
       return NextResponse.json({
         lat,
         lon,
-        display_name: location.display_name,
-        address: location.address,
+        display_name: displayName,
         iso: null,
         zone: null,
         message: "Location not within a supported ISO region",
@@ -330,8 +349,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       lat,
       lon,
-      display_name: location.display_name,
-      address: location.address,
+      display_name: displayName,
       iso: isoData.iso,
       zone: isoData.zone,
     });
